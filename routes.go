@@ -7,12 +7,27 @@ type Route struct {
 	Handler func(w http.ResponseWriter, r *http.Request)
 }
 
-var routes = [...]Route{
-	{
-		Path:    "GET /value/{key}",
-		Handler: handleGetKeyRequest,
-	},
-}
+var (
+	handler = newHandler()
+	routes  = [...]Route{
+		{
+			Path:    "GET /key/{key}",
+			Handler: handler.handleGetKeyRequest,
+		},
+		{
+			Path:    "POST /key",
+			Handler: handler.handlePostKeyRequest,
+		},
+		{
+			Path:    "PATCH /key",
+			Handler: handler.handlePatchKeyRequest,
+		},
+		{
+			Path:    "DELETE /key",
+			Handler: handler.handleDeleteKeyRequest,
+		},
+	}
+)
 
 func RegisterRoutes(server *http.ServeMux) {
 	for _, route := range routes {
