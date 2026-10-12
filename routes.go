@@ -15,15 +15,15 @@ var (
 			Handler: handler.handleGetKeyRequest,
 		},
 		{
-			Path:    "POST /key",
+			Path:    "POST /key/{key}",
 			Handler: handler.handlePostKeyRequest,
 		},
 		{
-			Path:    "PATCH /key",
+			Path:    "PATCH /key/{key}",
 			Handler: handler.handlePatchKeyRequest,
 		},
 		{
-			Path:    "DELETE /key",
+			Path:    "DELETE /key/{key}",
 			Handler: handler.handleDeleteKeyRequest,
 		},
 	}
