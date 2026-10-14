@@ -9,7 +9,8 @@ type Handler struct {
 }
 
 func newHandler() *Handler {
-	service := &Service{}
+	cache := NewCache()
+	service := NewService(cache)
 	return &Handler{
 		Service: service,
 	}

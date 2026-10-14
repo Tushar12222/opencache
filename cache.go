@@ -6,6 +6,12 @@ type Cache struct {
 	kv map[any]any
 }
 
+func NewCache() *Cache {
+	return &Cache{
+		kv: make(map[any]any),
+	}
+}
+
 func (cache *Cache) keyExists(key any) bool {
 	_, exists := cache.kv[key]
 	if !exists {

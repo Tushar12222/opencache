@@ -4,6 +4,12 @@ type Service struct {
 	cache *Cache
 }
 
+func NewService(cache *Cache) *Service {
+	return &Service{
+		cache: cache,
+	}
+}
+
 func (service *Service) getKey(key any) (any, error) {
 	return service.cache.getKey(key)
 }
