@@ -19,31 +19,34 @@ func newHandler() *Handler {
 func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	handler.Service.getKey(key)
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Received request"))
+	writeResponse(w)
 }
 
 func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	handler.Service.addKey(key)
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Received request"))
+	body := r.Body
+	decodedBody, err := JSONDecoder[PostKeyRequest](&body)
+	if err != nil {
+		writeErrorResponse(w, err)
+	}
+	handler.Service.addKey(key, decodedBody.Value)
+	writeResponse(w)
 }
 
 func (hander *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	handler.Service.updateKey(key)
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Received request"))
+	body := r.Body
+	decodedBody, err := JSONDecoder[PatchKeyRequest](&body)
+	if err != nil {
+		writeErrorResponse(w, err)
+		return
+	}
+	handler.Service.putKey(key, decodedBody.Value)
+	writeResponse(w)
 }
 
 func (hander *Handler) handleDeleteKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	handler.Service.deleteKey(key)
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Received request"))
+	writeResponse(w)
 }
