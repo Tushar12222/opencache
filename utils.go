@@ -11,6 +11,10 @@ type expectedRequestBody interface {
 	PostKeyRequest | PatchKeyRequest
 }
 
+type expectedResponseBody interface {
+	PostKeyResponse | PatchKeyResponse | GetKeyResponse | DeleteKeyResponse
+}
+
 func JSONDecoder[requestBody expectedRequestBody](body *io.ReadCloser) (*requestBody, error) {
 	var dto requestBody
 	decoder := json.NewDecoder(*body)
@@ -22,15 +26,16 @@ func JSONDecoder[requestBody expectedRequestBody](body *io.ReadCloser) (*request
 	return &dto, nil
 }
 
-func writeErrorResponse(w http.ResponseWriter, err error) {
-	errMsg := err.Error()
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte(errMsg))
+func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": errMsg,
+	})
 }
 
-func writeResponse(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Received Request"))
+func writeResponse[responseBody expectedResponseBody](w http.ResponseWriter, status int, resBody responseBody) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(resBody)
 }

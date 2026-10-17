@@ -18,8 +18,12 @@ func newHandler() *Handler {
 
 func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	handler.Service.getKey(key)
-	writeResponse(w)
+	value, err := handler.Service.getKey(key)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Value: value})
 }
 
 func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -27,10 +31,15 @@ func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Reque
 	body := r.Body
 	decodedBody, err := JSONDecoder[PostKeyRequest](&body)
 	if err != nil {
-		writeErrorResponse(w, err)
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
-	handler.Service.addKey(key, decodedBody.Value)
-	writeResponse(w)
+	err = handler.Service.addKey(key, decodedBody.Value)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
 }
 
 func (hander *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -38,15 +47,23 @@ func (hander *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Requ
 	body := r.Body
 	decodedBody, err := JSONDecoder[PatchKeyRequest](&body)
 	if err != nil {
-		writeErrorResponse(w, err)
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	handler.Service.putKey(key, decodedBody.Value)
-	writeResponse(w)
+	err = handler.Service.putKey(key, decodedBody.Value)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
 }
 
 func (hander *Handler) handleDeleteKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	handler.Service.deleteKey(key)
-	writeResponse(w)
+	err := handler.Service.deleteKey(key)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeResponse(w, http.StatusOK, DeleteKeyResponse{Message: "key deleted successfully"})
 }
