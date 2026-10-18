@@ -2,14 +2,20 @@ package main
 
 import "net/http"
 
+type HandlerFunc func(w http.ResponseWriter, r *http.Request)
+
 type Route struct {
 	Path    string
-	Handler func(w http.ResponseWriter, r *http.Request)
+	Handler HandlerFunc
 }
 
 var (
 	handler = newHandler()
 	routes  = [...]Route{
+		{
+			Path:    "GET /key/{key}/exists",
+			Handler: handler.handleKeyExistsRequest,
+		},
 		{
 			Path:    "GET /key/{key}",
 			Handler: handler.handleGetKeyRequest,

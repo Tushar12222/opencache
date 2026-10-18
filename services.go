@@ -10,6 +10,10 @@ func NewService(cache *Cache) *Service {
 	}
 }
 
+func (service *Service) keyExists(key any) bool {
+	return service.cache.keyExists(key)
+}
+
 func (service *Service) getKey(key any) (any, error) {
 	return service.cache.getKey(key)
 }

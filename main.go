@@ -15,16 +15,15 @@ var (
 )
 
 func main() {
-	// Create a dedicated route multiplexer (router)
 	mux := http.NewServeMux()
 
-	// Register routes
 	RegisterRoutes(mux)
 
-	// Explicitly configure server properties to prevent connection exhaustion
+	globalWrappedMux := PanicRecoveryMiddleware(RequestIDMiddleware(LoggingMiddleware(mux)))
+
 	server := &http.Server{
 		Addr:         ":" + strconv.Itoa(ServerPort),
-		Handler:      mux,
+		Handler:      globalWrappedMux,
 		ReadTimeout:  ReadTimeout,
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,

@@ -16,6 +16,14 @@ func newHandler() *Handler {
 	}
 }
 
+func (hander *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	exists := handler.Service.keyExists(key)
+	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+		"value": exists,
+	}})
+}
+
 func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	value, err := handler.Service.getKey(key)
@@ -23,7 +31,9 @@ func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Reques
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Value: value})
+	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+		"value": value,
+	}})
 }
 
 func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Request) {

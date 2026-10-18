@@ -17,10 +17,15 @@ type PatchKeyResponse struct {
 }
 
 type GetKeyResponse struct {
-	Message any `json:"message"`
-	Value   any `json:"value"`
+	Message any            `json:"message"`
+	Data    map[string]any `json:"data"`
 }
 
 type DeleteKeyResponse struct {
 	Message any `json:"message"`
+}
+
+type KeyExistsResponse struct {
+	Message any            `json:"message"`
+	Data    map[string]any `json:"data"`
 }

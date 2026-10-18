@@ -1,7 +1,5 @@
 package main
 
-import "errors"
-
 type Cache struct {
 	kv map[any]any
 }
@@ -20,7 +18,7 @@ func (cache *Cache) keyExists(key any) bool {
 func (cache *Cache) getKey(key any) (any, error) {
 	val, exists := cache.kv[key]
 	if !exists {
-		return nil, errors.New("key not found")
+		return nil, &NotFoundError{Message: "key not found"}
 	}
 
 	return val, nil
@@ -29,7 +27,7 @@ func (cache *Cache) getKey(key any) (any, error) {
 func (cache *Cache) putKey(key any, value any) error {
 	_, exists := cache.kv[key]
 	if !exists {
-		return errors.New("key not found")
+		return &NotFoundError{Message: "key not found"}
 	}
 	cache.kv[key] = value
 	return nil
@@ -38,7 +36,7 @@ func (cache *Cache) putKey(key any, value any) error {
 func (cache *Cache) deleteKey(key any) error {
 	_, exists := cache.kv[key]
 	if !exists {
-		return errors.New("key not found")
+		return &NotFoundError{Message: "key not found"}
 	}
 
 	delete(cache.kv, key)
@@ -48,7 +46,7 @@ func (cache *Cache) deleteKey(key any) error {
 func (cache *Cache) addKey(key any, value any) error {
 	_, exists := cache.kv[key]
 	if exists {
-		return errors.New("key already exists")
+		return &ConflictError{Message: "key already exists"}
 	}
 
 	cache.kv[key] = value

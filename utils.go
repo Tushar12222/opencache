@@ -5,13 +5,15 @@ import (
 	"errors"
 	"io"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 type expectedRequestBody interface {
 	PostKeyRequest | PatchKeyRequest
 }
 
-type expectedResponseBody interface {
+type ResponseBody interface {
 	PostKeyResponse | PatchKeyResponse | GetKeyResponse | DeleteKeyResponse
 }
 
@@ -26,16 +28,50 @@ func JSONDecoder[requestBody expectedRequestBody](body *io.ReadCloser) (*request
 	return &dto, nil
 }
 
+func FormatError(err any) error {
+	var e error
+	switch concreteErr := err.(type) {
+	case *NotFoundError:
+		e = concreteErr
+
+	case *ConflictError:
+		e = concreteErr
+
+	case *BadRequestError:
+		e = concreteErr
+
+	case *InternalServerError:
+		concreteErr.Message = "something went wrong"
+
+	default:
+		e = &InternalServerError{Message: "something went wrong"}
+	}
+	return e
+}
+
 func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": errMsg,
-	})
+	w.Write([]byte(errMsg))
 }
 
-func writeResponse[responseBody expectedResponseBody](w http.ResponseWriter, status int, resBody responseBody) {
+func writeResponse[responseBody ResponseBody](w http.ResponseWriter, status int, resBody responseBody) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(resBody)
+}
+
+func mustGenerateUUIDV7(
+	generate func() (uuid.UUID, error),
+) string {
+	uuid, err := generate()
+	if err != nil {
+		panic(err)
+	}
+	return uuid.String()
+}
+
+func JSONEncoder(data any) ([]byte, error) {
+	jsonData, err := json.Marshal(data)
+	return jsonData, err
 }
