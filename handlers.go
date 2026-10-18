@@ -20,7 +20,7 @@ func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Reques
 	key := r.PathValue("key")
 	value, err := handler.Service.getKey(key)
 	if err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Value: value})
