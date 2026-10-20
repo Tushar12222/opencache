@@ -16,7 +16,7 @@ func newHandler() *Handler {
 	}
 }
 
-func (hander *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	exists := handler.Service.keyExists(key)
 	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
@@ -24,7 +24,7 @@ func (hander *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Req
 	}})
 }
 
-func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	value, err := handler.Service.getKey(key)
 	if err != nil {
@@ -36,7 +36,7 @@ func (hander *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Reques
 	}})
 }
 
-func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	body := r.Body
 	decodedBody, err := JSONDecoder[PostKeyRequest](&body)
@@ -52,7 +52,7 @@ func (hander *Handler) handlePostKeyRequest(w http.ResponseWriter, r *http.Reque
 	writeResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
 }
 
-func (hander *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	body := r.Body
 	decodedBody, err := JSONDecoder[PatchKeyRequest](&body)
@@ -68,7 +68,7 @@ func (hander *Handler) handlePatchKeyRequest(w http.ResponseWriter, r *http.Requ
 	writeResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
 }
 
-func (hander *Handler) handleDeleteKeyRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) handleDeleteKeyRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	err := handler.Service.deleteKey(key)
 	if err != nil {

@@ -10,27 +10,27 @@ type Route struct {
 }
 
 var (
-	handler = newHandler()
-	routes  = [...]Route{
+	globalHandler = newHandler()
+	routes        = [...]Route{
 		{
 			Path:    "GET /key/{key}/exists",
-			Handler: handler.handleKeyExistsRequest,
+			Handler: globalHandler.handleKeyExistsRequest,
 		},
 		{
 			Path:    "GET /key/{key}",
-			Handler: handler.handleGetKeyRequest,
+			Handler: globalHandler.handleGetKeyRequest,
 		},
 		{
 			Path:    "POST /key/{key}",
-			Handler: handler.handlePostKeyRequest,
+			Handler: globalHandler.handlePostKeyRequest,
 		},
 		{
 			Path:    "PATCH /key/{key}",
-			Handler: handler.handlePatchKeyRequest,
+			Handler: globalHandler.handlePatchKeyRequest,
 		},
 		{
 			Path:    "DELETE /key/{key}",
-			Handler: handler.handleDeleteKeyRequest,
+			Handler: globalHandler.handleDeleteKeyRequest,
 		},
 	}
 )
