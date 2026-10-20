@@ -52,13 +52,19 @@ func FormatError(err any) error {
 func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Write([]byte(errMsg))
+	_, err := w.Write([]byte(errMsg))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func writeResponse[responseBody ResponseBody](w http.ResponseWriter, status int, resBody responseBody) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resBody)
+	err := json.NewEncoder(w).Encode(resBody)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func mustGenerateUUIDV7(
