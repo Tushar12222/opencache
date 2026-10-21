@@ -10,22 +10,22 @@ func NewService(cache *Cache) *Service {
 	}
 }
 
-func (service *Service) keyExists(key any) bool {
+func (service *Service) keyExists(key string) bool {
 	return service.cache.keyExists(key)
 }
 
-func (service *Service) getKey(key any) (any, error) {
+func (service *Service) getKey(key string) (any, error) {
 	return service.cache.getKey(key)
 }
 
-func (service *Service) addKey(key any, value any) error {
+func (service *Service) addKey(key string, value any, exp int) error {
 	return service.cache.addKey(key, value)
 }
 
-func (service *Service) putKey(key any, value any) error {
+func (service *Service) putKey(key string, value any, exp int) error {
 	return service.cache.putKey(key, value)
 }
 
-func (service *Service) deleteKey(key any) error {
+func (service *Service) deleteKey(key string) error {
 	return service.cache.deleteKey(key)
 }

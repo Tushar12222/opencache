@@ -3,24 +3,24 @@ package main
 import "sync"
 
 type Cache struct {
-	kv    map[any]any
+	kv    map[string]any
 	mutex sync.RWMutex
 }
 
 func NewCache() *Cache {
 	return &Cache{
-		kv: make(map[any]any),
+		kv: make(map[string]any),
 	}
 }
 
-func (cache *Cache) keyExists(key any) bool {
+func (cache *Cache) keyExists(key string) bool {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	_, exists := cache.kv[key]
 	return exists
 }
 
-func (cache *Cache) getKey(key any) (any, error) {
+func (cache *Cache) getKey(key string) (any, error) {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	val, exists := cache.kv[key]
@@ -31,7 +31,7 @@ func (cache *Cache) getKey(key any) (any, error) {
 	return val, nil
 }
 
-func (cache *Cache) putKey(key any, value any) error {
+func (cache *Cache) putKey(key string, value any) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	_, exists := cache.kv[key]
@@ -42,7 +42,7 @@ func (cache *Cache) putKey(key any, value any) error {
 	return nil
 }
 
-func (cache *Cache) deleteKey(key any) error {
+func (cache *Cache) deleteKey(key string) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	_, exists := cache.kv[key]
@@ -54,7 +54,7 @@ func (cache *Cache) deleteKey(key any) error {
 	return nil
 }
 
-func (cache *Cache) addKey(key any, value any) error {
+func (cache *Cache) addKey(key string, value any) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	_, exists := cache.kv[key]
