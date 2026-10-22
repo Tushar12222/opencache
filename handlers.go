@@ -36,13 +36,22 @@ func (handler *Handler) handleGetKeyRequest(w http.ResponseWriter, r *http.Reque
 		writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	value, err := handler.Service.getKey(key)
+	val, expiration, err := handler.Service.getKey(key)
 	if err != nil {
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
+
+	if expiration == nil {
+		writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+			"value": val,
+		}})
+		return
+	}
+
 	writeResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
-		"value": value,
+		"value": val,
+		"exp":   *expiration,
 	}})
 }
 

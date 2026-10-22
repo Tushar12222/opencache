@@ -77,11 +77,10 @@ func (body PatchKeyRequest) Validate() error {
 		panic(errors.New("key cannot be empty"))
 	}
 
-	if body.Value == nil {
+	if body.Value == nil && body.Expiry < 0 {
 		errs["value"] = "value cannot be nil or empty"
-	}
-
-	if body.Expiry < 0 {
+		errs["exp"] = "exp cannot be less than zero"
+	} else if body.Expiry < 0 {
 		errs["exp"] = "exp cannot be less than zero"
 	}
 

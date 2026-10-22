@@ -1,15 +1,23 @@
 package main
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
+
+type Value struct {
+	val        any
+	expiration *time.Time
+}
 
 type Cache struct {
-	kv    map[string]any
+	kv    map[string]Value
 	mutex sync.RWMutex
 }
 
 func NewCache() *Cache {
 	return &Cache{
-		kv: make(map[string]any),
+		kv: make(map[string]Value),
 	}
 }
 
@@ -20,25 +28,33 @@ func (cache *Cache) keyExists(key string) bool {
 	return exists
 }
 
-func (cache *Cache) getKey(key string) (any, error) {
+func (cache *Cache) getKey(key string) (any, *time.Time, error) {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	val, exists := cache.kv[key]
 	if !exists {
-		return nil, &NotFoundError{Message: "key not found"}
+		return nil, nil, &NotFoundError{Message: "key not found"}
 	}
 
-	return val, nil
+	return val.val, val.expiration, nil
 }
 
-func (cache *Cache) putKey(key string, value any) error {
+func (cache *Cache) putKey(key string, value any, expiration *time.Time) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	_, exists := cache.kv[key]
 	if !exists {
 		return &NotFoundError{Message: "key not found"}
 	}
-	cache.kv[key] = value
+	if value != nil && expiration != nil {
+		cache.kv[key] = Value{value, expiration}
+	} else if value != nil {
+		v := cache.kv[key]
+		cache.kv[key] = Value{val: value, expiration: v.expiration}
+	} else {
+		v := cache.kv[key]
+		cache.kv[key] = Value{val: v.val, expiration: nil}
+	}
 	return nil
 }
 
@@ -54,7 +70,7 @@ func (cache *Cache) deleteKey(key string) error {
 	return nil
 }
 
-func (cache *Cache) addKey(key string, value any) error {
+func (cache *Cache) addKey(key string, value any, expiration *time.Time) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	_, exists := cache.kv[key]
@@ -62,6 +78,6 @@ func (cache *Cache) addKey(key string, value any) error {
 		return &ConflictError{Message: "key already exists"}
 	}
 
-	cache.kv[key] = value
+	cache.kv[key] = Value{value, expiration}
 	return nil
 }
