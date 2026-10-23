@@ -13,11 +13,13 @@ func NewService(cache *Cache) *Service {
 }
 
 func (service *Service) keyExists(key string) bool {
-	return service.cache.keyExists(key)
+	now := time.Now().UTC()
+	return service.cache.keyExists(key, now)
 }
 
 func (service *Service) getKey(key string) (any, *time.Time, error) {
-	return service.cache.getKey(key)
+	now := time.Now().UTC()
+	return service.cache.getKey(key, now)
 }
 
 func (service *Service) addKey(key string, value any, exp int) error {
@@ -27,7 +29,9 @@ func (service *Service) addKey(key string, value any, exp int) error {
 		expirationTime := now.Add(time.Duration(exp) * time.Millisecond)
 		expiration = &expirationTime
 	}
-	return service.cache.addKey(key, value, expiration)
+
+	now := time.Now().UTC()
+	return service.cache.addKey(key, value, now, expiration)
 }
 
 func (service *Service) putKey(key string, value any, exp int) error {
@@ -37,9 +41,12 @@ func (service *Service) putKey(key string, value any, exp int) error {
 		expirationTime := now.Add(time.Duration(exp) * time.Millisecond)
 		expiration = &expirationTime
 	}
-	return service.cache.putKey(key, value, expiration)
+
+	now := time.Now().UTC()
+	return service.cache.putKey(key, value, now, expiration)
 }
 
 func (service *Service) deleteKey(key string) error {
-	return service.cache.deleteKey(key)
+	now := time.Now().UTC()
+	return service.cache.deleteKey(key, now)
 }
