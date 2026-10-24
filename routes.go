@@ -40,3 +40,7 @@ func RegisterRoutes(server *http.ServeMux) {
 		server.HandleFunc(route.Path, route.Handler)
 	}
 }
+
+func GetGlobalHandler() *Handler {
+	return globalHandler
+}

@@ -16,7 +16,7 @@ func extractRequestID(r *http.Request) string {
 func validateRequestID(requestID string) error {
 	_, err := uuid.Parse(requestID)
 	if err != nil {
-		return &BadRequestError{Message: "invalid request", Fields: map[string]any{
+		return &BadRequestError{Message: "invalid request", Fields: map[string]string{
 			"requestID": err.Error(),
 		}}
 	}

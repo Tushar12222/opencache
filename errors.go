@@ -8,8 +8,8 @@ type (
 		Message string `json:"message"`
 	}
 	BadRequestError struct {
-		Message string         `json:"message"`
-		Fields  map[string]any `json:"fields"`
+		Message string            `json:"message"`
+		Fields  map[string]string `json:"fields"`
 	}
 	ConflictError struct {
 		Message string `json:"message"`
