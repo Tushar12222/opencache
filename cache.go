@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -21,13 +22,33 @@ func NewCache() *Cache {
 	}
 }
 
+func (cache *Cache) RemoveExpiredKeys() {
+	for key, val := range cache.kv {
+		cache.mutex.Lock()
+		_, exp := val.val, val.expiration
+		if exp == nil {
+			continue
+		}
+		expirationTime := *exp
+		now := time.Now().UTC()
+		if expirationTime.Compare(now) <= 0 {
+			fmt.Println("Deleting key: ", key)
+			delete(cache.kv, key)
+		}
+		cache.mutex.Unlock()
+	}
+}
+
 func (cache *Cache) keyExists(key string, now time.Time) bool {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	val, exists := cache.kv[key]
-	expirationTime := *val.expiration
-	if exists && expirationTime.Compare(now) <= 0 {
-		return false
+
+	if exists {
+		expirationTime := *val.expiration
+		if expirationTime.Compare(now) <= 0 {
+			return false
+		}
 	}
 	return exists
 }
@@ -36,10 +57,16 @@ func (cache *Cache) getKey(key string, now time.Time) (any, *time.Time, error) {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	val, exists := cache.kv[key]
-	expirationTime := *val.expiration
 
-	if !exists || (exists && expirationTime.Compare(now) <= 0) {
+	if !exists {
 		return nil, nil, &NotFoundError{Message: "key not found"}
+	}
+
+	if exists {
+		expirationTime := *val.expiration
+		if expirationTime.Compare(now) <= 0 {
+			return nil, nil, &NotFoundError{Message: "key not found"}
+		}
 	}
 
 	return val.val, val.expiration, nil
@@ -50,11 +77,17 @@ func (cache *Cache) putKey(key string, value any, now time.Time, expiration *tim
 	defer cache.mutex.Unlock()
 	val, exists := cache.kv[key]
 
-	expirationTime := *val.expiration
-
-	if !exists || (exists && expirationTime.Compare(now) <= 0) {
+	if !exists {
 		return &NotFoundError{Message: "key not found"}
 	}
+
+	if exists {
+		expirationTime := *val.expiration
+		if expirationTime.Compare(now) <= 0 {
+			return &NotFoundError{Message: "key not found"}
+		}
+	}
+
 	if value != nil && expiration != nil {
 		cache.kv[key] = Value{value, expiration}
 	} else if value != nil {
@@ -71,9 +104,15 @@ func (cache *Cache) deleteKey(key string, now time.Time) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	val, exists := cache.kv[key]
-	expirationTime := *val.expiration
-	if !exists || (exists && expirationTime.Compare(now) <= 0) {
+	if !exists {
 		return &NotFoundError{Message: "key not found"}
+	}
+
+	if exists {
+		expirationTime := *val.expiration
+		if expirationTime.Compare(now) <= 0 {
+			return &NotFoundError{Message: "key not found"}
+		}
 	}
 
 	delete(cache.kv, key)
@@ -84,10 +123,11 @@ func (cache *Cache) addKey(key string, value any, now time.Time, expiration *tim
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	val, exists := cache.kv[key]
-
-	expirationTime := *val.expiration
-	if exists || (exists && expirationTime.Compare(now) > 0) {
-		return &ConflictError{Message: "key already exists"}
+	if exists {
+		expirationTime := *val.expiration
+		if expirationTime.Compare(now) > 0 {
+			return &ConflictError{Message: "key already exists"}
+		}
 	}
 
 	cache.kv[key] = Value{value, expiration}
