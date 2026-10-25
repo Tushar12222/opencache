@@ -7,6 +7,9 @@ import (
 func main() {
 	stop := InitializeGlobalContext()
 	defer stop()
+
+	InitProductionLogger()
+
 	httpServer := InitializeHTTPServer()
 
 	serverErr := make(chan error, 1)
