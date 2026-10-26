@@ -9,13 +9,19 @@ import (
 type ctxKey string
 
 const (
-	KeyTraceID        ctxKey = "trace_id"
-	KeyRequestID      ctxKey = "request_id"
-	KeyIdempotencyKey ctxKey = "idempotency_key"
+	KeyTraceID   ctxKey = "trace_id"
+	KeyRequestID ctxKey = "request_id"
 )
 
 type ContextHandler struct {
 	slog.Handler
+}
+
+func newJSONHandler() slog.Handler {
+	return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelInfo,
+		AddSource: true,
+	})
 }
 
 func (h *ContextHandler) Handle(ctx context.Context, r slog.Record) error {
@@ -25,20 +31,19 @@ func (h *ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if reqID, ok := ctx.Value(KeyRequestID).(string); ok {
 		r.AddAttrs(slog.String("request_id", reqID))
 	}
-	if idemKey, ok := ctx.Value(KeyIdempotencyKey).(string); ok {
-		r.AddAttrs(slog.String("idempotency_key", idemKey))
-	}
 	return h.Handler.Handle(ctx, r)
 }
 
 func InitProductionLogger() {
-	opts := &slog.HandlerOptions{
-		Level:     slog.LevelInfo, // Suppress debug messages
-		AddSource: true,           // Capture filename and line number
-	}
-
-	baseJSONHandler := slog.NewJSONHandler(os.Stdout, opts)
+	baseJSONHandler := newJSONHandler()
 	wrappedHandler := &ContextHandler{Handler: baseJSONHandler}
 
 	slog.SetDefault(slog.New(wrappedHandler))
+}
+
+func NewCronLogger(jobName string) *slog.Logger {
+	return slog.New(newJSONHandler()).With(
+		slog.String("component", "cron"),
+		slog.String("job", jobName),
+	)
 }
