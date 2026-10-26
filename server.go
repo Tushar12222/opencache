@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,7 +46,7 @@ func shutDownHTTPServer(server *http.Server, ctx context.Context) {
 }
 
 func CleanUp(server *http.Server) context.CancelFunc {
-	fmt.Println("Cleaning up resources")
+	slog.Info("Cleaning up resources")
 	cleanUpTimeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), cleanUpTimeout)
 	shutDownHTTPServer(server, ctx)
@@ -55,7 +56,7 @@ func CleanUp(server *http.Server) context.CancelFunc {
 func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	select {
 	case <-GetGlobalContext().Done():
-		fmt.Println("Interrupt received")
+		slog.Info("Interrupt received")
 
 	case err := <-serverErr:
 		if err != nil && err != http.ErrServerClosed {
@@ -64,13 +65,14 @@ func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	}
 }
 
-func StartBackgroundThread(handler *Handler, context context.Context) {
+func StartCronJob(handler *Handler, context context.Context, cronLogger *slog.Logger) {
 	go func() {
-		removeDeadKeysThread(handler, context)
+		removeDeadKeysThread(handler, context, cronLogger)
 	}()
 }
 
-func removeDeadKeysThread(handler *Handler, context context.Context) {
+func removeDeadKeysThread(handler *Handler, context context.Context, cronLogger *slog.Logger) {
+	cronLogger.Info("Starting cron")
 	backgroundThreadInterval := 10 * time.Second
 	ticker := time.NewTicker(backgroundThreadInterval)
 	defer ticker.Stop()
@@ -78,9 +80,10 @@ func removeDeadKeysThread(handler *Handler, context context.Context) {
 	for {
 		select {
 		case <-context.Done():
+			cronLogger.Info("Stopping cron")
 			return
 		case <-ticker.C:
-			cache.RemoveExpiredKeys()
+			cache.RemoveExpiredKeys(cronLogger)
 		}
 	}
 }
@@ -91,8 +94,6 @@ func InitializeHTTPServer() *http.Server {
 	globalWrappedMux := PanicRecoveryMiddleware(RequestIDMiddleware(LoggingMiddleware(mux)))
 
 	RegisterRoutes(mux)
-
-	StartBackgroundThread(GetGlobalHandler(), GetGlobalContext())
 
 	server := &http.Server{
 		Addr:         ":" + strconv.Itoa(ServerPort),

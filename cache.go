@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -22,17 +22,18 @@ func NewCache() *Cache {
 	}
 }
 
-func (cache *Cache) RemoveExpiredKeys() {
+func (cache *Cache) RemoveExpiredKeys(cronLogger *slog.Logger) {
 	for key, val := range cache.kv {
 		cache.mutex.Lock()
 		_, exp := val.val, val.expiration
 		if exp == nil {
+			cache.mutex.Unlock()
 			continue
 		}
 		expirationTime := *exp
 		now := time.Now().UTC()
 		if expirationTime.Compare(now) <= 0 {
-			fmt.Println("Deleting key: ", key)
+			cronLogger.Info("Deleting key", slog.String("key", key))
 			delete(cache.kv, key)
 		}
 		cache.mutex.Unlock()

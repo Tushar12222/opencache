@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -80,7 +79,7 @@ func PanicRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("PANIC RECOVERED: %v", err)
+				slog.Error("PANIC RECOVERED", slog.Any("error", err))
 				errMsg, _ := JSONEncoder(map[string]any{
 					"message": "something went wrong",
 				})

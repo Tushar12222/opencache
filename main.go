@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 )
 
 func main() {
@@ -9,18 +9,21 @@ func main() {
 	defer stop()
 
 	InitProductionLogger()
+	cronLogger := NewCronLogger("remove-expired-keys")
 
+	StartCronJob(GetGlobalHandler(), GetGlobalContext(), cronLogger)
 	httpServer := InitializeHTTPServer()
 
 	serverErr := make(chan error, 1)
 
 	go func() {
-		fmt.Println("Server running on port", ServerPort)
+		slog.Info("Server running",
+			slog.Int("port_number", ServerPort))
 		serverErr <- httpServer.ListenAndServe()
 	}()
 
 	ListenForInterrupt(httpServer, serverErr)
 	cancel := CleanUp(httpServer)
 	defer cancel()
-	fmt.Println("Server shutdown successfully")
+	slog.Info("Server shutdown successfully")
 }
