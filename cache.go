@@ -22,6 +22,21 @@ func NewCache() *Cache {
 	}
 }
 
+func (cache *Cache) removeKeyIfExpired(key string, val Value) bool {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+	_, exp := val.val, val.expiration
+	if exp == nil {
+		return false
+	}
+	expirationTime := *exp
+	now := time.Now().UTC()
+	if expirationTime.Compare(now) <= 0 {
+		delete(cache.kv, key)
+	}
+	return true
+}
+
 func (cache *Cache) RemoveExpiredKeys(cronLogger *slog.Logger) {
 	for key, val := range cache.kv {
 		cache.mutex.Lock()

@@ -9,9 +9,8 @@ func main() {
 	defer stop()
 
 	InitProductionLogger()
-	cronLogger := NewCronLogger("remove-expired-keys")
 
-	StartCronJob(GetGlobalHandler(), GetGlobalContext(), cronLogger)
+	StartCronJob(GetGlobalHandler(), GetGlobalContext())
 	httpServer := InitializeHTTPServer()
 
 	serverErr := make(chan error, 1)

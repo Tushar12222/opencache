@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -65,25 +67,31 @@ func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	}
 }
 
-func StartCronJob(handler *Handler, context context.Context, cronLogger *slog.Logger) {
-	go func() {
-		removeDeadKeysThread(handler, context, cronLogger)
-	}()
+func StartCronJob(handler *Handler, context context.Context) {
+	go removeDeadKeysThread(handler, context)
 }
 
-func removeDeadKeysThread(handler *Handler, context context.Context, cronLogger *slog.Logger) {
-	cronLogger.Info("Starting cron")
+func removeDeadKeysThread(handler *Handler, context context.Context) {
 	backgroundThreadInterval := 10 * time.Second
 	ticker := time.NewTicker(backgroundThreadInterval)
 	defer ticker.Stop()
-	cache := handler.Service.cache
 	for {
 		select {
 		case <-context.Done():
-			cronLogger.Info("Stopping cron")
+			slog.Info("Stopping cron")
 			return
 		case <-ticker.C:
-			cache.RemoveExpiredKeys(cronLogger)
+			jobID := GenerateJobID(uuid.NewV7)
+			cronLogger := NewCronLogger("remove-expired-keys", jobID)
+			cronLogger.Info("Starting cron")
+			cache := handler.Service.cache
+			for key, val := range cache.kv {
+				deleted := cache.removeKeyIfExpired(key, val)
+				if deleted {
+					cronLogger.Info("Deleting key", slog.String("key", key))
+				}
+			}
+
 		}
 	}
 }

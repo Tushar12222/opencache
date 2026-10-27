@@ -132,3 +132,14 @@ func JSONEncoder(data any) ([]byte, error) {
 	jsonData, err := json.Marshal(data)
 	return jsonData, err
 }
+
+func GenerateJobID(
+	generate func() (uuid.UUID, error),
+) string {
+	uuid, err := generate()
+	if err != nil {
+		panic(err)
+	}
+
+	return uuid.String()
+}

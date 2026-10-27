@@ -41,9 +41,10 @@ func InitProductionLogger() {
 	slog.SetDefault(slog.New(wrappedHandler))
 }
 
-func NewCronLogger(jobName string) *slog.Logger {
+func NewCronLogger(jobName string, jobID string) *slog.Logger {
 	return slog.New(newJSONHandler()).With(
 		slog.String("component", "cron"),
 		slog.String("job", jobName),
+		slog.String("jobID", jobID),
 	)
 }
