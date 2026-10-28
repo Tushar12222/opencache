@@ -8,7 +8,8 @@ func main() {
 	stop := InitializeGlobalContext()
 	defer stop()
 
-	InitProductionLogger()
+	handler := InitProductionLogger()
+	defer handler.Shutdown()
 
 	StartCronJob(GetGlobalHandler(), GetGlobalContext())
 	httpServer := InitializeHTTPServer()
