@@ -11,7 +11,7 @@ func main() {
 	handler := InitProductionLogger()
 	defer handler.Shutdown()
 
-	StartCronJob(GetGlobalHandler(), GetGlobalContext())
+	StartCronJob(GetGlobalHandler(), GetGlobalContext(), removeDeadKeysThread)
 	httpServer := InitializeHTTPServer()
 
 	serverErr := make(chan error, 1)
