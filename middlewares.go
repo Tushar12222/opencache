@@ -1,12 +1,22 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriterWrapper) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
 
 func extractRequestID(r *http.Request) string {
 	requestID := r.Header.Get("X-Request-ID")
@@ -27,10 +37,24 @@ func validateRequestID(requestID string) error {
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := extractRequestID(r)
-		log.Printf("Received request: %s %s %s", requestID, r.Method, r.URL.Path)
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("Request: %s processing completed: %v", requestID, time.Since(start))
+
+		wrappedWriter := &responseWriterWrapper{ResponseWriter: w, statusCode: http.StatusOK}
+
+		reqLogger := slog.Default().With(
+			slog.String("request_id", requestID),
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+		)
+
+		reqLogger.Info("http request received")
+
+		next.ServeHTTP(wrappedWriter, r)
+
+		reqLogger.Info("http request completed",
+			slog.Int("status", wrappedWriter.statusCode),
+			slog.Duration("latency", time.Since(start)),
+		)
 	})
 }
 
@@ -55,7 +79,7 @@ func PanicRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("PANIC RECOVERED: %v", err)
+				slog.Error("PANIC RECOVERED", slog.Any("error", err))
 				errMsg, _ := JSONEncoder(map[string]any{
 					"message": "something went wrong",
 				})

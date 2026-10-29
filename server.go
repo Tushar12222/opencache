@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,7 +46,7 @@ func shutDownHTTPServer(server *http.Server, ctx context.Context) {
 }
 
 func CleanUp(server *http.Server) context.CancelFunc {
-	fmt.Println("Cleaning up resources")
+	slog.Info("Cleaning up resources")
 	cleanUpTimeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), cleanUpTimeout)
 	shutDownHTTPServer(server, ctx)
@@ -55,7 +56,7 @@ func CleanUp(server *http.Server) context.CancelFunc {
 func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	select {
 	case <-GetGlobalContext().Done():
-		fmt.Println("Interrupt received")
+		slog.Info("Interrupt received")
 
 	case err := <-serverErr:
 		if err != nil && err != http.ErrServerClosed {
@@ -64,25 +65,8 @@ func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	}
 }
 
-func StartBackgroundThread(handler *Handler, context context.Context) {
-	go func() {
-		removeDeadKeysThread(handler, context)
-	}()
-}
-
-func removeDeadKeysThread(handler *Handler, context context.Context) {
-	backgroundThreadInterval := 10 * time.Second
-	ticker := time.NewTicker(backgroundThreadInterval)
-	defer ticker.Stop()
-	cache := handler.Service.cache
-	for {
-		select {
-		case <-context.Done():
-			return
-		case <-ticker.C:
-			cache.RemoveExpiredKeys()
-		}
-	}
+func StartCronJob(handler *Handler, context context.Context, removeExpiredKeyCron func(*Handler, context.Context)) {
+	go removeExpiredKeyCron(handler, context)
 }
 
 func InitializeHTTPServer() *http.Server {
@@ -91,8 +75,6 @@ func InitializeHTTPServer() *http.Server {
 	globalWrappedMux := PanicRecoveryMiddleware(RequestIDMiddleware(LoggingMiddleware(mux)))
 
 	RegisterRoutes(mux)
-
-	StartBackgroundThread(GetGlobalHandler(), GetGlobalContext())
 
 	server := &http.Server{
 		Addr:         ":" + strconv.Itoa(ServerPort),

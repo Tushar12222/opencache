@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -131,4 +134,40 @@ func mustGenerateUUIDV7(
 func JSONEncoder(data any) ([]byte, error) {
 	jsonData, err := json.Marshal(data)
 	return jsonData, err
+}
+
+func GenerateJobID(
+	generate func() (uuid.UUID, error),
+) string {
+	uuid, err := generate()
+	if err != nil {
+		panic(err)
+	}
+
+	return uuid.String()
+}
+
+func removeDeadKeysThread(handler *Handler, context context.Context) {
+	backgroundThreadInterval := 10 * time.Second
+	ticker := time.NewTicker(backgroundThreadInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-context.Done():
+			slog.Info("Stopping cron")
+			return
+		case <-ticker.C:
+			jobID := GenerateJobID(uuid.NewV7)
+			cronLogger := NewCronLogger("remove-expired-keys", jobID)
+			cronLogger.Info("Starting cron")
+			cache := handler.Service.cache
+			for key, val := range cache.kv {
+				deleted := cache.removeKeyIfExpired(key, val)
+				if deleted {
+					cronLogger.Info("Deleting key", slog.String("key", key))
+				}
+			}
+
+		}
+	}
 }

@@ -24,25 +24,31 @@ func (service *Service) getKey(key string) (any, *time.Time, error) {
 
 func (service *Service) addKey(key string, value any, exp int) error {
 	var expiration *time.Time
+	var now time.Time
 	if exp != 0 {
-		now := time.Now().UTC()
+		now = time.Now().UTC()
 		expirationTime := now.Add(time.Duration(exp) * time.Millisecond)
 		expiration = &expirationTime
 	}
 
-	now := time.Now().UTC()
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	return service.cache.addKey(key, value, now, expiration)
 }
 
 func (service *Service) putKey(key string, value any, exp int) error {
 	var expiration *time.Time
+	var now time.Time
 	if exp != 0 {
 		now := time.Now().UTC()
 		expirationTime := now.Add(time.Duration(exp) * time.Millisecond)
 		expiration = &expirationTime
 	}
 
-	now := time.Now().UTC()
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	return service.cache.putKey(key, value, now, expiration)
 }
 
