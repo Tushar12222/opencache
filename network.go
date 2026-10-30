@@ -1,58 +1,59 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
-	"io"
-	"net"
+
+	"github.com/quic-go/quic-go"
 )
 
-func HandleAndServe(port string) (err error) {
-	listener, err := net.Listen("tcp", port)
+func StartQuicListener() {
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{
+			loadCertificate(),
+		},
+		NextProtos: []string{"opc"},
+	}
+
+	listener, err := quic.ListenAddr(
+		":4242",
+		tlsConfig,
+		nil,
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	defer func() {
-		if closeErr := listener.Close(); err != nil {
-			err = closeErr
-		}
-	}()
-
-	fmt.Println("TCP server listening on :8080")
-
 	for {
-		conn, err := listener.Accept()
+		conn, err := listener.Accept(context.Background())
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
+			panic(err)
 		}
-
-		fmt.Println("Client connected:", conn.RemoteAddr())
 
 		go handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
-
-	buf := make([]byte, 1024)
+func handleConnection(conn *quic.Conn) {
+	defer conn.CloseWithError(0, "connection closed")
 
 	for {
-		n, err := conn.Read(buf)
+		stream, err := conn.AcceptStream(context.Background())
 		if err != nil {
-			if err != io.EOF {
-				fmt.Println("Read error:", err)
-			}
 			return
 		}
 
-		fmt.Printf("Received: %s\n", buf[:n])
-
-		_, err = conn.Write(buf[:n]) // Echo data back to client
-		if err != nil {
-			fmt.Println("Write error:", err)
-			return
-		}
+		go handleStream(stream)
 	}
+}
+
+func handleStream(stream *quic.Stream) {
+	defer stream.Close()
+
+	// Read your custom message format.
+	// Decode the message type and payload.
+	// Execute the requested operation.
+
+	fmt.Println("Received a new OPC stream")
 }
