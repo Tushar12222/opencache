@@ -4,9 +4,40 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 
 	"github.com/quic-go/quic-go"
 )
+
+var (
+	versionHeaderLengthBytes     int = 1
+	payloadSizeHeaderLengthBytes int = 1
+	commandHeaderLengthBytes     int = 4
+	totalHeaderLengthBytes       int = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
+)
+
+type OCPRequestHeader struct {
+	Version     string
+	Command     string
+	PayloadSize int
+}
+
+type OCPRequestPayload struct {
+	KeyLength   int
+	Key         string
+	ValueLength int
+	Value       any
+}
+
+func parseHeaderBytes(data []byte) *OCPRequestHeader {
+	return nil
+}
+
+func parsePayloadBytes(data []byte) *OCPRequestPayload {
+	return nil
+}
+
+func loadCertificate() {}
 
 func StartQuicListener() {
 	tlsConfig := &tls.Config{
@@ -51,9 +82,22 @@ func handleConnection(conn *quic.Conn) {
 func handleStream(stream *quic.Stream) {
 	defer stream.Close()
 
-	// Read your custom message format.
-	// Decode the message type and payload.
-	// Execute the requested operation.
+	headerBuffer := make([]byte, totalHeaderLengthBytes)
+
+	_, err := io.ReadFull(stream, headerBuffer)
+	if err != nil {
+		// Handle incomplete header or stream error
+		return
+	}
+	parsedRequestHeaders := parseHeaderBytes(headerBuffer)
+
+	payloadBuffer := make([]byte, parsedRequestHeaders.PayloadSize)
+	_, err = io.ReadFull(stream, payloadBuffer)
+	if err != nil {
+		return
+	}
+
+	parsedRequestPayload := parsePayloadBytes(payloadBuffer)
 
 	fmt.Println("Received a new OPC stream")
 }
