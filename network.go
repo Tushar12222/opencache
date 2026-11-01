@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -10,16 +12,27 @@ import (
 )
 
 var (
-	versionHeaderLengthBytes     int = 1
-	payloadSizeHeaderLengthBytes int = 1
-	commandHeaderLengthBytes     int = 4
-	totalHeaderLengthBytes       int = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
+	versionHeaderLengthBytes     int   = 1
+	payloadSizeHeaderLengthBytes int   = 3
+	commandHeaderLengthBytes     int   = 1
+	totalHeaderLengthBytes       int   = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
+	currentVersion               uint8 = 1
+)
+
+type Command uint8
+
+const (
+	GetCommand Command = iota + 1
+	PutCommant
+	PostCommand
+	DeleteCommand
+	ExistsCommand
 )
 
 type OCPRequestHeader struct {
-	Version     string
-	Command     string
-	PayloadSize int
+	Version     uint8
+	Command     Command
+	PayloadSize uint16
 }
 
 type OCPRequestPayload struct {
@@ -29,8 +42,37 @@ type OCPRequestPayload struct {
 	Value       any
 }
 
-func parseHeaderBytes(data []byte) *OCPRequestHeader {
-	return nil
+func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
+	index := 0
+
+	versionBytes := data[index:versionHeaderLengthBytes]
+	versionByte := versionBytes[0]
+	index = index + versionHeaderLengthBytes
+
+	commandBytes := data[index:commandHeaderLengthBytes]
+	commandByte := commandBytes[0]
+	index = index + commandHeaderLengthBytes
+
+	payloadBytes := data[index:payloadSizeHeaderLengthBytes]
+
+	version := uint8(versionByte)
+	if version != currentVersion {
+		return &OCPRequestHeader{}, errors.New("")
+	}
+
+	parsedCommand := int8(commandByte)
+	if parsedCommand < 1 || parsedCommand > 5 {
+		return &OCPRequestHeader{}, errors.New("")
+	}
+
+	command := Command(parsedCommand)
+	payloadSize := binary.BigEndian.Uint16(payloadBytes)
+
+	return &OCPRequestHeader{
+		Version:     version,
+		Command:     command,
+		PayloadSize: payloadSize,
+	}, nil
 }
 
 func parsePayloadBytes(data []byte) *OCPRequestPayload {
@@ -89,7 +131,10 @@ func handleStream(stream *quic.Stream) {
 		// Handle incomplete header or stream error
 		return
 	}
-	parsedRequestHeaders := parseHeaderBytes(headerBuffer)
+	parsedRequestHeaders, err := parseHeaderBytes(headerBuffer)
+	if err != nil {
+		return
+	}
 
 	payloadBuffer := make([]byte, parsedRequestHeaders.PayloadSize)
 	_, err = io.ReadFull(stream, payloadBuffer)
