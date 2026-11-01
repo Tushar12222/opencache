@@ -12,11 +12,15 @@ import (
 )
 
 var (
-	versionHeaderLengthBytes     int   = 1
-	payloadSizeHeaderLengthBytes int   = 3
-	commandHeaderLengthBytes     int   = 1
-	totalHeaderLengthBytes       int   = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
-	currentVersion               uint8 = 1
+	versionHeaderLengthBytes     int = 1
+	payloadSizeHeaderLengthBytes int = 3
+	commandHeaderLengthBytes     int = 1
+	totalHeaderLengthBytes       int = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
+)
+
+const (
+	CurrentVersion uint8  = 1
+	MaxPayloadSize uint16 = 17
 )
 
 type Command uint8
@@ -56,7 +60,7 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	payloadBytes := data[index:payloadSizeHeaderLengthBytes]
 
 	version := uint8(versionByte)
-	if version != currentVersion {
+	if version != CurrentVersion {
 		return &OCPRequestHeader{}, errors.New("")
 	}
 
@@ -64,9 +68,12 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	if parsedCommand < 1 || parsedCommand > 5 {
 		return &OCPRequestHeader{}, errors.New("")
 	}
-
 	command := Command(parsedCommand)
+
 	payloadSize := binary.BigEndian.Uint16(payloadBytes)
+	if payloadSize > MaxPayloadSize {
+		return &OCPRequestHeader{}, errors.New("")
+	}
 
 	return &OCPRequestHeader{
 		Version:     version,
