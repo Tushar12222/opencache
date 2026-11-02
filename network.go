@@ -16,6 +16,22 @@ var (
 	payloadSizeHeaderLengthBytes int = 3
 	commandHeaderLengthBytes     int = 1
 	totalHeaderLengthBytes       int = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
+	keySizeHeaderLengthBytes     int = 1
+	valueSizeHeaderLengthBytes   int = 2
+	valueTypeHeaderLengthBytes   int = 1
+)
+
+type ValidTypes interface {
+	bool | int | string | float64
+}
+
+type ValueType uint8
+
+const (
+	TypeBool ValueType = iota + 1
+	TypeInt
+	TypeFloat
+	TypeString
 )
 
 const (
@@ -39,25 +55,25 @@ type OCPRequestHeader struct {
 	PayloadSize uint16
 }
 
-type OCPRequestPayload struct {
+type OCPRequestPayload[T ValidTypes] struct {
 	KeyLength   int
 	Key         string
 	ValueLength int
-	Value       any
+	Value       T
 }
 
 func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	index := 0
 
-	versionBytes := data[index:versionHeaderLengthBytes]
+	versionBytes := data[index : index+versionHeaderLengthBytes]
 	versionByte := versionBytes[0]
 	index = index + versionHeaderLengthBytes
 
-	commandBytes := data[index:commandHeaderLengthBytes]
+	commandBytes := data[index : index+commandHeaderLengthBytes]
 	commandByte := commandBytes[0]
 	index = index + commandHeaderLengthBytes
 
-	payloadBytes := data[index:payloadSizeHeaderLengthBytes]
+	payloadBytes := data[index : index+payloadSizeHeaderLengthBytes]
 
 	version := uint8(versionByte)
 	if version != CurrentVersion {
@@ -82,8 +98,43 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	}, nil
 }
 
-func parsePayloadBytes(data []byte) *OCPRequestPayload {
-	return nil
+func parsePayloadBytes(data []byte) (*OCPRequestPayload, error) {
+	index := 0
+	keyLengthBytes := data[index : index+keySizeHeaderLengthBytes]
+	index += keySizeHeaderLengthBytes
+
+	keySize := binary.BigEndian.Uint16(keyLengthBytes)
+	keyBytes := data[index : index+int(keySize)]
+
+	key := string(keyBytes)
+
+	valueLengthBytes := data[index : index+keySizeHeaderLengthBytes]
+	index += valueSizeHeaderLengthBytes
+
+	valueTypeBytes := data[index : index+valueTypeHeaderLengthBytes]
+	index += valueTypeHeaderLengthBytes
+	valueTypeByte := valueTypeBytes[0]
+	parsedValueType := uint8(valueTypeByte)
+
+	valueType := ValueType(parsedValueType)
+
+	valueSize := binary.BigEndian.Uint16(valueLengthBytes)
+	valueBytes := data[index : index+int(valueSize)]
+
+	var value ValidTypes
+
+	switch valueType {
+	case TypeBool:
+		valueByte := valueBytes[0]
+		value = (valueByte != 0).(bool)
+	}
+
+	return &OCPRequestPayload{
+		KeyLength:   int(keySize),
+		Key:         key,
+		ValueLength: int(valueSize),
+		Value:       value,
+	}, nil
 }
 
 func loadCertificate() {}
