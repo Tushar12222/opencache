@@ -113,11 +113,11 @@ func (cache *Cache) putKey(key string, value any, now time.Time, expiration *tim
 	if value != nil && expiration != nil {
 		cache.kv[key] = Value{value, expiration}
 	} else if value != nil {
-		v := cache.kv[key]
-		cache.kv[key] = Value{val: value, expiration: v.expiration}
-	} else {
-		v := cache.kv[key]
-		cache.kv[key] = Value{val: v.val, expiration: nil}
+		cache.kv[key] = Value{val: value, expiration: val.expiration}
+	} else if expiration != nil {
+		cache.kv[key] = Value{val: val.val, expiration: expiration}
+	} else if (*expiration).Equal(now) {
+		cache.kv[key] = Value{val: val.val, expiration: nil}
 	}
 	return nil
 }
@@ -155,6 +155,11 @@ func (cache *Cache) addKey(key string, value any, now time.Time, expiration *tim
 		if expirationTime.Compare(now) > 0 {
 			return &ConflictError{Message: "key already exists"}
 		}
+	}
+
+	if (*expiration).Equal(now) {
+		cache.kv[key] = Value{value, nil}
+		return nil
 	}
 
 	cache.kv[key] = Value{value, expiration}
