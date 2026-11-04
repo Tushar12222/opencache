@@ -21,22 +21,11 @@ var (
 	valueTypeHeaderLengthBytes   int = 1
 )
 
-type ValidTypes interface {
-	bool | int | string | float64
-}
-
-type ValueType uint8
-
 const (
-	TypeBool ValueType = iota + 1
-	TypeInt
-	TypeFloat
-	TypeString
-)
-
-const (
-	CurrentVersion uint8  = 1
-	MaxPayloadSize uint16 = 17
+	CurrentVersion uint8   = 1
+	MaxPayloadSize uint16  = 17
+	MaxKeySize     float32 = 0.64
+	MaxValueSize   uint16  = 17
 )
 
 type Command uint8
@@ -55,11 +44,12 @@ type OCPRequestHeader struct {
 	PayloadSize uint16
 }
 
-type OCPRequestPayload[T ValidTypes] struct {
+type OCPRequestPayload struct {
 	KeyLength   int
 	Key         string
 	ValueLength int
-	Value       T
+	ValueType   byte
+	Value       []byte
 }
 
 func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
@@ -101,39 +91,36 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 func parsePayloadBytes(data []byte) (*OCPRequestPayload, error) {
 	index := 0
 	keyLengthBytes := data[index : index+keySizeHeaderLengthBytes]
+	keySize := binary.BigEndian.Uint16(keyLengthBytes)
+
+	if float32(keySize) > MaxKeySize {
+		return &OCPRequestPayload{}, errors.New("")
+	}
 	index += keySizeHeaderLengthBytes
 
-	keySize := binary.BigEndian.Uint16(keyLengthBytes)
 	keyBytes := data[index : index+int(keySize)]
-
 	key := string(keyBytes)
 
-	valueLengthBytes := data[index : index+keySizeHeaderLengthBytes]
+	valueLengthBytes := data[index : index+valueSizeHeaderLengthBytes]
 	index += valueSizeHeaderLengthBytes
 
 	valueTypeBytes := data[index : index+valueTypeHeaderLengthBytes]
 	index += valueTypeHeaderLengthBytes
 	valueTypeByte := valueTypeBytes[0]
-	parsedValueType := uint8(valueTypeByte)
-
-	valueType := ValueType(parsedValueType)
 
 	valueSize := binary.BigEndian.Uint16(valueLengthBytes)
-	valueBytes := data[index : index+int(valueSize)]
-
-	var value ValidTypes
-
-	switch valueType {
-	case TypeBool:
-		valueByte := valueBytes[0]
-		value = (valueByte != 0).(bool)
+	if valueSize > MaxValueSize {
+		return &OCPRequestPayload{}, errors.New("")
 	}
+
+	valueBytes := data[index : index+int(valueSize)]
 
 	return &OCPRequestPayload{
 		KeyLength:   int(keySize),
 		Key:         key,
 		ValueLength: int(valueSize),
-		Value:       value,
+		ValueType:   valueTypeByte,
+		Value:       valueBytes,
 	}, nil
 }
 
