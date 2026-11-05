@@ -11,21 +11,21 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-var (
-	versionHeaderLengthBytes     int = 1
-	payloadSizeHeaderLengthBytes int = 3
-	commandHeaderLengthBytes     int = 1
-	totalHeaderLengthBytes       int = versionHeaderLengthBytes + payloadSizeHeaderLengthBytes + commandHeaderLengthBytes
-	keySizeHeaderLengthBytes     int = 1
-	valueSizeHeaderLengthBytes   int = 2
-	valueTypeHeaderLengthBytes   int = 1
+const (
+	VersionHeaderLengthBytes     int = 1
+	PayloadSizeHeaderLengthBytes int = 3
+	CommandHeaderLengthBytes     int = 1
+	TotalHeaderLengthBytes       int = VersionHeaderLengthBytes + PayloadSizeHeaderLengthBytes + CommandHeaderLengthBytes
+	KeySizeHeaderLengthBytes     int = 3
+	ValueSizeHeaderLengthBytes   int = 4
+	ValueTypeHeaderLengthBytes   int = 1
 )
 
 const (
-	CurrentVersion uint8   = 1
-	MaxPayloadSize uint16  = 17
-	MaxKeySize     float32 = 0.64
-	MaxValueSize   uint16  = 17
+	CurrentVersion      uint8  = 1
+	MaxPayloadSizeBytes uint32 = 17 * 1024 * 1024
+	MaxKeySizeBytes     uint32 = 64 * 1024
+	MaxValueSizeBytes   uint32 = 16 * 1024 * 1024
 )
 
 type Command uint8
@@ -44,26 +44,50 @@ type OCPRequestHeader struct {
 	PayloadSize uint16
 }
 
-type OCPRequestPayload struct {
-	KeyLength   int
+type OCPRequestBody struct {
+	KeyLength   uint32
 	Key         string
-	ValueLength int
+	ValueLength uint32
 	ValueType   byte
 	Value       []byte
+}
+
+type OCPPayload struct {
+	Version     uint8
+	Command     Command
+	PayloadSize uint16
+	KeyLength   uint32
+	Key         string
+	ValueLength uint32
+	ValueType   byte
+	Value       []byte
+}
+
+func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPPayload {
+	return &OCPPayload{
+		Version:     ocpRequestHeader.Version,
+		Command:     ocpRequestHeader.Command,
+		PayloadSize: ocpRequestHeader.PayloadSize,
+		KeyLength:   ocpRequestBody.KeyLength,
+		Key:         ocpRequestBody.Key,
+		ValueLength: ocpRequestBody.ValueLength,
+		ValueType:   ocpRequestBody.ValueType,
+		Value:       ocpRequestBody.Value,
+	}
 }
 
 func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	index := 0
 
-	versionBytes := data[index : index+versionHeaderLengthBytes]
+	versionBytes := data[index : index+VersionHeaderLengthBytes]
 	versionByte := versionBytes[0]
-	index = index + versionHeaderLengthBytes
+	index = index + VersionHeaderLengthBytes
 
-	commandBytes := data[index : index+commandHeaderLengthBytes]
+	commandBytes := data[index : index+CommandHeaderLengthBytes]
 	commandByte := commandBytes[0]
-	index = index + commandHeaderLengthBytes
+	index = index + CommandHeaderLengthBytes
 
-	payloadBytes := data[index : index+payloadSizeHeaderLengthBytes]
+	payloadBytes := data[index : index+PayloadSizeHeaderLengthBytes]
 
 	version := uint8(versionByte)
 	if version != CurrentVersion {
@@ -77,7 +101,7 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	command := Command(parsedCommand)
 
 	payloadSize := binary.BigEndian.Uint16(payloadBytes)
-	if payloadSize > MaxPayloadSize {
+	if uint32(payloadSize) > MaxPayloadSizeBytes {
 		return &OCPRequestHeader{}, errors.New("")
 	}
 
@@ -88,37 +112,37 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 	}, nil
 }
 
-func parsePayloadBytes(data []byte) (*OCPRequestPayload, error) {
+func parsePayloadBytes(data []byte) (*OCPRequestBody, error) {
 	index := 0
-	keyLengthBytes := data[index : index+keySizeHeaderLengthBytes]
-	keySize := binary.BigEndian.Uint16(keyLengthBytes)
+	keyLengthBytes := data[index : index+KeySizeHeaderLengthBytes]
+	keySize := uint32(binary.BigEndian.Uint16(keyLengthBytes))
 
-	if float32(keySize) > MaxKeySize {
-		return &OCPRequestPayload{}, errors.New("")
+	if keySize > MaxKeySizeBytes {
+		return &OCPRequestBody{}, errors.New("")
 	}
-	index += keySizeHeaderLengthBytes
+	index += KeySizeHeaderLengthBytes
 
 	keyBytes := data[index : index+int(keySize)]
 	key := string(keyBytes)
 
-	valueLengthBytes := data[index : index+valueSizeHeaderLengthBytes]
-	index += valueSizeHeaderLengthBytes
+	valueLengthBytes := data[index : index+ValueSizeHeaderLengthBytes]
+	index += ValueSizeHeaderLengthBytes
 
-	valueTypeBytes := data[index : index+valueTypeHeaderLengthBytes]
-	index += valueTypeHeaderLengthBytes
+	valueTypeBytes := data[index : index+ValueTypeHeaderLengthBytes]
+	index += ValueTypeHeaderLengthBytes
 	valueTypeByte := valueTypeBytes[0]
 
-	valueSize := binary.BigEndian.Uint16(valueLengthBytes)
-	if valueSize > MaxValueSize {
-		return &OCPRequestPayload{}, errors.New("")
+	valueSize := binary.BigEndian.Uint32(valueLengthBytes)
+	if valueSize > MaxValueSizeBytes {
+		return &OCPRequestBody{}, errors.New("")
 	}
 
 	valueBytes := data[index : index+int(valueSize)]
 
-	return &OCPRequestPayload{
-		KeyLength:   int(keySize),
+	return &OCPRequestBody{
+		KeyLength:   keySize,
 		Key:         key,
-		ValueLength: int(valueSize),
+		ValueLength: valueSize,
 		ValueType:   valueTypeByte,
 		Value:       valueBytes,
 	}, nil
@@ -169,7 +193,7 @@ func handleConnection(conn *quic.Conn) {
 func handleStream(stream *quic.Stream) {
 	defer stream.Close()
 
-	headerBuffer := make([]byte, totalHeaderLengthBytes)
+	headerBuffer := make([]byte, TotalHeaderLengthBytes)
 
 	_, err := io.ReadFull(stream, headerBuffer)
 	if err != nil {
