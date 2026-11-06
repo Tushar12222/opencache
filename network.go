@@ -63,6 +63,22 @@ type OCPPayload struct {
 	Value       []byte
 }
 
+// Network response for OCP
+/*
+[Version:      1 byte]
+[Status:       1 byte]
+[ResponseType: 1 byte]
+[ValueType:    1 byte]
+[ValueLength:  4 bytes]
+[Value:        N bytes]
+
+[Version:      1 byte]
+[Status:       1 byte]
+[ErrorCode: 1 byte]
+[MessageLength: 3 bytes]
+[Message: N bytes]
+* */
+
 func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPPayload {
 	return &OCPPayload{
 		Version:     ocpRequestHeader.Version,
