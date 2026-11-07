@@ -63,21 +63,26 @@ type OCPPayload struct {
 	Value       []byte
 }
 
-// Network response for OCP
-/*
-[Version:      1 byte]
-[Status:       1 byte]
-[ResponseType: 1 byte]
-[ValueType:    1 byte]
-[ValueLength:  4 bytes]
-[Value:        N bytes]
+type OCPResponse struct {
+	Version       uint8
+	Status        uint8
+	ResponseType  uint8
+	ValueType     byte
+	ValueLength   uint32
+	Value         []byte
+	ErrorCode     uint8
+	MessageLength uint32
+	Message       []byte
+}
 
-[Version:      1 byte]
-[Status:       1 byte]
-[ErrorCode: 1 byte]
-[MessageLength: 3 bytes]
-[Message: N bytes]
-* */
+type OCPError uint8
+
+const (
+	KeyNotFoundOCPError OCPError = iota + 1
+	DuplicateKeyOCPError
+	BadRequestOCPError
+	InternalServerOCPError
+)
 
 func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPPayload {
 	return &OCPPayload{
