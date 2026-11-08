@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/quic-go/quic-go"
 )
 
 type Handler struct {
@@ -15,6 +17,12 @@ func newHandler() *Handler {
 		Service: service,
 	}
 }
+
+func (handler *Handler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {}
+func (handler *Handler) handleOCPGetKey(w *quic.Stream, r *OCPRequest)    {}
+func (handler *Handler) handleOCPPostKey(w *quic.Stream, r *OCPRequest)   {}
+func (handler *Handler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest)  {}
+func (handler *Handler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {}
 
 func (handler *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")

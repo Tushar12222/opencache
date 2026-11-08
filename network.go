@@ -52,7 +52,7 @@ type OCPRequestBody struct {
 	Value       []byte
 }
 
-type OCPPayload struct {
+type OCPRequest struct {
 	Version     uint8
 	Command     Command
 	PayloadSize uint16
@@ -84,8 +84,8 @@ const (
 	InternalServerOCPError
 )
 
-func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPPayload {
-	return &OCPPayload{
+func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPRequest {
+	return &OCPRequest{
 		Version:     ocpRequestHeader.Version,
 		Command:     ocpRequestHeader.Command,
 		PayloadSize: ocpRequestHeader.PayloadSize,
