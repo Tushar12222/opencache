@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/quic-go/quic-go"
 )
 
 type expectedRequestBody interface {
@@ -58,6 +59,13 @@ func FormatError(err any) error {
 func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	_, err := w.Write([]byte(errMsg))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func writeOCPErrorResponse(w *quic.Stream, status int, errMsg string) {
 	_, err := w.Write([]byte(errMsg))
 	if err != nil {
 		panic(err)
@@ -110,6 +118,13 @@ func unknownJSONField(errMsg string) (string, bool) {
 		return "", false
 	}
 	return field, true
+}
+
+func writeOCPResponse[responseBody ResponseBody](w *quic.Stream, status int, resBody responseBody) {
+	err := json.NewEncoder(w).Encode(resBody)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func writeResponse[responseBody ResponseBody](w http.ResponseWriter, status int, resBody responseBody) {

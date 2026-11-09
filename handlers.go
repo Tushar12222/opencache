@@ -18,11 +18,102 @@ func newHandler() *Handler {
 	}
 }
 
-func (handler *Handler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {}
-func (handler *Handler) handleOCPGetKey(w *quic.Stream, r *OCPRequest)    {}
-func (handler *Handler) handleOCPPostKey(w *quic.Stream, r *OCPRequest)   {}
-func (handler *Handler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest)  {}
-func (handler *Handler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {}
+func (handler *Handler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
+	key := r.Key
+	request := KeyExistsRequest{Key: key}
+	if err := request.Validate(); err != nil {
+		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	exists := handler.Service.keyExists(key)
+	writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+		"value": exists,
+	}})
+}
+
+func (handler *Handler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
+	key := r.Key
+	request := GetKeyRequest{Key: key}
+	if err := request.Validate(); err != nil {
+		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	val, expiration, err := handler.Service.getKey(key)
+	if err != nil {
+		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if expiration == nil {
+		writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+			"value": val,
+		}})
+		return
+	}
+
+	writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+		"value": val,
+		"exp":   *expiration,
+	}})
+}
+
+func (handler *Handler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
+	key := r.Key
+
+	postRequest := PostKeyRequest{
+		r.Key,
+		r.Value,
+		0,
+	}
+
+	if err := postRequest.Validate(); err != nil {
+		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err := handler.Service.addKey(key, postRequest.Value, postRequest.Expiry)
+	if err != nil {
+		writeOCPErrorResponse(w, http.StatusConflict, err.Error())
+		return
+	}
+	writeOCPResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
+}
+
+func (handler *Handler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
+	key := r.Key
+
+	patchRequest := PatchKeyRequest{
+		Key:   r.Key,
+		Value: r.Value,
+	}
+
+	if err := patchRequest.Validate(); err != nil {
+		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err := handler.Service.putKey(key, patchRequest.Value, patchRequest.Expiry)
+	if err != nil {
+		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeOCPResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
+}
+
+func (handler *Handler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
+	key := r.Key
+	request := DeleteKeyRequest{Key: key}
+	if err := request.Validate(); err != nil {
+		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	err := handler.Service.deleteKey(key)
+	if err != nil {
+		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeOCPResponse(w, http.StatusOK, DeleteKeyResponse{Message: "key deleted successfully"})
+}
 
 func (handler *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
