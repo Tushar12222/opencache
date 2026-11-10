@@ -1,12 +1,24 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
 
-type HandlerFunc func(w http.ResponseWriter, r *http.Request)
+	"github.com/quic-go/quic-go"
+)
+
+type (
+	HandlerFunc    func(w http.ResponseWriter, r *http.Request)
+	OCPHandlerFunc func(w *quic.Stream, r *OCPRequest)
+)
 
 type Route struct {
 	Path    string
 	Handler HandlerFunc
+}
+
+type OCPRoute struct {
+	Command string
+	Handler OCPHandlerFunc
 }
 
 var (
@@ -39,8 +51,4 @@ func RegisterRoutes(server *http.ServeMux) {
 	for _, route := range routes {
 		server.HandleFunc(route.Path, route.Handler)
 	}
-}
-
-func GetGlobalHandler() *Handler {
-	return globalHandler
 }

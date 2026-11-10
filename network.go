@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/quic-go/quic-go"
@@ -32,7 +31,7 @@ type Command uint8
 
 const (
 	GetCommand Command = iota + 1
-	PutCommant
+	PatchCommand
 	PostCommand
 	DeleteCommand
 	ExistsCommand
@@ -84,7 +83,7 @@ const (
 	InternalServerOCPError
 )
 
-func constructOCPPayload(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPRequest {
+func constructOCPRequest(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPRequest {
 	return &OCPRequest{
 		Version:     ocpRequestHeader.Version,
 		Command:     ocpRequestHeader.Command,
@@ -171,7 +170,7 @@ func parsePayloadBytes(data []byte) (*OCPRequestBody, error) {
 
 func loadCertificate() {}
 
-func StartQuicListener() {
+func StartQuicServer() {
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{
 			loadCertificate(),
@@ -188,17 +187,19 @@ func StartQuicListener() {
 		panic(err)
 	}
 
+	handler := newOCPHandler()
+
 	for {
 		conn, err := listener.Accept(context.Background())
 		if err != nil {
 			panic(err)
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, handler)
 	}
 }
 
-func handleConnection(conn *quic.Conn) {
+func handleConnection(conn *quic.Conn, handler *OCPHandler) {
 	defer conn.CloseWithError(0, "connection closed")
 
 	for {
@@ -207,11 +208,26 @@ func handleConnection(conn *quic.Conn) {
 			return
 		}
 
-		go handleStream(stream)
+		go handleStream(stream, handler)
 	}
 }
 
-func handleStream(stream *quic.Stream) {
+func (handler *OCPHandler) handleOCPRequest(w *quic.Stream, request *OCPRequest) {
+	switch request.Command {
+	case PatchCommand:
+		handler.handleOCPPatchKey(w, request)
+	case GetCommand:
+		handler.handleOCPGetKey(w, request)
+	case PostCommand:
+		handler.handleOCPPostKey(w, request)
+	case DeleteCommand:
+		handler.handleOCPDeleteKey(w, request)
+	case ExistsCommand:
+		handler.handleOCPKeyExists(w, request)
+	}
+}
+
+func handleStream(stream *quic.Stream, handler *OCPHandler) {
 	defer stream.Close()
 
 	headerBuffer := make([]byte, TotalHeaderLengthBytes)
@@ -232,7 +248,11 @@ func handleStream(stream *quic.Stream) {
 		return
 	}
 
-	parsedRequestPayload := parsePayloadBytes(payloadBuffer)
+	parsedRequestPayload, err := parsePayloadBytes(payloadBuffer)
+	if err != nil {
+		return
+	}
 
-	fmt.Println("Received a new OPC stream")
+	request := constructOCPRequest(parsedRequestHeaders, parsedRequestPayload)
+	handler.handleOCPRequest(stream, request)
 }

@@ -10,6 +10,10 @@ type Handler struct {
 	Service *Service
 }
 
+type OCPHandler struct {
+	Service *Service
+}
+
 func newHandler() *Handler {
 	cache := NewCache()
 	service := NewService(cache)
@@ -18,7 +22,23 @@ func newHandler() *Handler {
 	}
 }
 
-func (handler *Handler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
+func newOCPHandler() *OCPHandler {
+	cache := NewCache()
+	service := NewService(cache)
+	return &OCPHandler{
+		Service: service,
+	}
+}
+
+func GetGlobalHandler() *Handler {
+	return globalHandler
+}
+
+func GetGlobalOCPHandler() *OCPHandler {
+	return globalOCPHandler
+}
+
+func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := KeyExistsRequest{Key: key}
 	if err := request.Validate(); err != nil {
@@ -31,7 +51,7 @@ func (handler *Handler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 	}})
 }
 
-func (handler *Handler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
+func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := GetKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
@@ -57,7 +77,7 @@ func (handler *Handler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	}})
 }
 
-func (handler *Handler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
+func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 
 	postRequest := PostKeyRequest{
@@ -79,7 +99,7 @@ func (handler *Handler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 	writeOCPResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
 }
 
-func (handler *Handler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
+func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 
 	patchRequest := PatchKeyRequest{
@@ -100,7 +120,7 @@ func (handler *Handler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 	writeOCPResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
 }
 
-func (handler *Handler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
+func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := DeleteKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
