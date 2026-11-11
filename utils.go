@@ -65,8 +65,8 @@ func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	}
 }
 
-func writeOCPErrorResponse(w *quic.Stream, status int, errMsg string) {
-	_, err := w.Write([]byte(errMsg))
+func writeOCPErrorResponse(w *quic.Stream, errCode uint8) {
+	_, err := w.Write([]byte{errCode})
 	if err != nil {
 		panic(err)
 	}

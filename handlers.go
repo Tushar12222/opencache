@@ -34,15 +34,11 @@ func GetGlobalHandler() *Handler {
 	return globalHandler
 }
 
-func GetGlobalOCPHandler() *OCPHandler {
-	return globalOCPHandler
-}
-
 func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := KeyExistsRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
 	exists := handler.Service.keyExists(key)
@@ -55,12 +51,12 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := GetKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
 	val, expiration, err := handler.Service.getKey(key)
 	if err != nil {
-		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
 
@@ -87,13 +83,13 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if err := postRequest.Validate(); err != nil {
-		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
 
 	err := handler.Service.addKey(key, postRequest.Value, postRequest.Expiry)
 	if err != nil {
-		writeOCPErrorResponse(w, http.StatusConflict, err.Error())
+		writeOCPErrorResponse(w, uint8(DuplicateKeyOCPError))
 		return
 	}
 	writeOCPResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
@@ -108,13 +104,13 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if err := patchRequest.Validate(); err != nil {
-		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
 
 	err := handler.Service.putKey(key, patchRequest.Value, patchRequest.Expiry)
 	if err != nil {
-		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
 	writeOCPResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
@@ -124,12 +120,12 @@ func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := DeleteKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
 	err := handler.Service.deleteKey(key)
 	if err != nil {
-		writeOCPErrorResponse(w, http.StatusNotFound, err.Error())
+		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
 	writeOCPResponse(w, http.StatusOK, DeleteKeyResponse{Message: "key deleted successfully"})
