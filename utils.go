@@ -65,8 +65,25 @@ func writeErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	}
 }
 
+func appendVersionToBuffer(buf *[]byte) {
+	(*buf) = append((*buf), CurrentVersion)
+}
+
+func appendStatusToBuffer(buf *[]byte, status uint8) {
+	(*buf) = append((*buf), status)
+}
+
+func appendErrorCodeToBuffer(buf *[]byte, errorCode uint8) {
+	(*buf) = append((*buf), errorCode)
+}
+
 func writeOCPErrorResponse(w *quic.Stream, errCode uint8) {
-	_, err := w.Write([]byte{errCode})
+	errorBuffer := make([]byte, 3)
+	appendVersionToBuffer(&errorBuffer)
+	appendStatusToBuffer(&errorBuffer, 1)
+	appendErrorCodeToBuffer(&errorBuffer, errCode)
+
+	_, err := w.Write(errorBuffer)
 	if err != nil {
 		panic(err)
 	}
