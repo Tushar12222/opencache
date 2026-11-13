@@ -48,6 +48,26 @@ type KeyExistsResponse struct {
 	Data    map[string]any `json:"data"`
 }
 
+type OCPResponseBody struct {
+	ValueType   byte
+	ValueLength uint32
+	ValueBytes  []byte
+}
+
+func toOCPResponseBody(valueType byte, valueLength uint32, valueBytes []byte) (*OCPResponseBody, *OCPError) {
+	l := uint32(len(valueBytes))
+
+	if l > valueLength {
+		return &OCPResponseBody{}, &OCPError{InternalServerOCPError}
+	}
+
+	return &OCPResponseBody{
+		valueType,
+		valueLength,
+		valueBytes,
+	}, nil
+}
+
 func (body PostKeyRequest) Validate() error {
 	errs := make(map[string]string)
 

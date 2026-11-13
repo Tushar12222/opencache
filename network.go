@@ -74,10 +74,14 @@ type OCPResponse struct {
 	Message       []byte
 }
 
-type OCPError uint8
+type OCPError struct {
+	ocpErrorType OCPErrorType
+}
+
+type OCPErrorType uint8
 
 const (
-	KeyNotFoundOCPError OCPError = iota + 1
+	KeyNotFoundOCPError OCPErrorType = iota + 1
 	DuplicateKeyOCPError
 	BadRequestOCPError
 	InternalServerOCPError

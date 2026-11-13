@@ -42,7 +42,7 @@ func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 		return
 	}
 	exists := handler.Service.keyExists(key)
-	writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+	writeOCPResponse(w, http.StatusOK, &GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
 		"value": exists,
 	}})
 }
@@ -61,13 +61,13 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if expiration == nil {
-		writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+		writeOCPResponse(w, http.StatusOK, &GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
 			"value": val,
 		}})
 		return
 	}
 
-	writeOCPResponse(w, http.StatusOK, GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
+	writeOCPResponse(w, http.StatusOK, &GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
 		"value": val,
 		"exp":   *expiration,
 	}})
@@ -92,7 +92,7 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(DuplicateKeyOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusCreated, PostKeyResponse{Message: "key added successfully"})
+	writeOCPResponse(w, http.StatusCreated, &PostKeyResponse{Message: "key added successfully"})
 }
 
 func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
@@ -113,7 +113,7 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusOK, PatchKeyResponse{Message: "key updated successfully"})
+	writeOCPResponse(w, http.StatusOK, &PatchKeyResponse{Message: "key updated successfully"})
 }
 
 func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
@@ -128,7 +128,7 @@ func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusOK, DeleteKeyResponse{Message: "key deleted successfully"})
+	writeOCPResponse(w, http.StatusOK, &DeleteKeyResponse{Message: "key deleted successfully"})
 }
 
 func (handler *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
