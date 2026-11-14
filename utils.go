@@ -138,7 +138,7 @@ func unknownJSONField(errMsg string) (string, bool) {
 }
 
 // nil resBody = only acknowledge else send value
-func writeOCPResponse[responseBody ResponseBody](w *quic.Stream, status int, resBody *responseBody) {
+func writeOCPResponse(w *quic.Stream, status int, resBody *OCPResponseBody) {
 	var responseBuffer []byte
 
 	if resBody == nil {

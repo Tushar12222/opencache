@@ -42,9 +42,22 @@ func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 		return
 	}
 	exists := handler.Service.keyExists(key)
-	writeOCPResponse(w, http.StatusOK, &GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
-		"value": exists,
-	}})
+
+	var valueBytes []byte
+
+	if exists {
+		valueBytes = []byte{0x01}
+	} else {
+		valueBytes = []byte{0x00}
+	}
+
+	existsResponseBody, err := toOCPResponseBody(1, 1, valueBytes)
+	if err != nil {
+		writeOCPErrorResponse(w, uint8(InternalServerOCPError))
+		return
+	}
+
+	writeOCPResponse(w, 0, existsResponseBody)
 }
 
 func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
@@ -61,6 +74,11 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if expiration == nil {
+		getResponseBody, err := toOCPResponseBody(1, 1, []byte(exists))
+		if err != nil {
+			writeOCPErrorResponse(w, uint8(InternalServerOCPError))
+			return
+		}
 		writeOCPResponse(w, http.StatusOK, &GetKeyResponse{Message: "key retrieved successfully", Data: map[string]any{
 			"value": val,
 		}})
