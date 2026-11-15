@@ -77,6 +77,10 @@ func appendErrorCodeToBuffer(buf *[]byte, errorCode uint8) {
 	(*buf) = append((*buf), errorCode)
 }
 
+func appendResponseTypeToBuffer(buf *[]byte, responseType uint8) {
+	(*buf) = append((*buf), responseType)
+}
+
 func writeOCPErrorResponse(w *quic.Stream, errCode uint8) {
 	errorBuffer := make([]byte, 3)
 	appendVersionToBuffer(&errorBuffer)
@@ -144,6 +148,17 @@ func writeOCPResponse(w *quic.Stream, status int, resBody *OCPResponseBody) {
 	if resBody == nil {
 		responseBuffer = make([]byte, 3)
 	} else {
+		valueLen := len(resBody.ValueBytes)
+		responseBuffer = make([]byte, 8+valueLen)
+	}
+
+	appendVersionToBuffer(&responseBuffer)
+	appendStatusToBuffer(&responseBuffer, 0)
+
+	if resBody == nil {
+		appendResponseTypeToBuffer(&responseBuffer, 0)
+	} else {
+		appendResponseTypeToBuffer(&responseBuffer, 1)
 	}
 
 	err := json.NewEncoder(w).Encode(responseBuffer)

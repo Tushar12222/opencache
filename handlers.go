@@ -110,7 +110,7 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(DuplicateKeyOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusCreated, &PostKeyResponse{Message: "key added successfully"})
+	writeOCPResponse(w, http.StatusCreated, nil)
 }
 
 func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
@@ -131,7 +131,7 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusOK, &PatchKeyResponse{Message: "key updated successfully"})
+	writeOCPResponse(w, http.StatusOK, nil)
 }
 
 func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
@@ -146,7 +146,7 @@ func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
-	writeOCPResponse(w, http.StatusOK, &DeleteKeyResponse{Message: "key deleted successfully"})
+	writeOCPResponse(w, http.StatusOK, nil)
 }
 
 func (handler *Handler) handleKeyExistsRequest(w http.ResponseWriter, r *http.Request) {
