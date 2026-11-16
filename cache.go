@@ -7,7 +7,8 @@ import (
 )
 
 type Value struct {
-	val        any
+	valueType  byte
+	valueBytes []byte
 	expiration *time.Time
 }
 
@@ -25,7 +26,7 @@ func NewCache() *Cache {
 func (cache *Cache) removeKeyIfExpired(key string, val Value) bool {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
-	_, exp := val.val, val.expiration
+	exp := val.expiration
 	if exp == nil {
 		return false
 	}
@@ -40,7 +41,7 @@ func (cache *Cache) removeKeyIfExpired(key string, val Value) bool {
 func (cache *Cache) RemoveExpiredKeys(cronLogger *slog.Logger) {
 	for key, val := range cache.kv {
 		cache.mutex.Lock()
-		_, exp := val.val, val.expiration
+		exp := val.expiration
 		if exp == nil {
 			cache.mutex.Unlock()
 			continue
@@ -71,28 +72,28 @@ func (cache *Cache) keyExists(key string, now time.Time) bool {
 	return exists
 }
 
-func (cache *Cache) getKey(key string, now time.Time) (any, *time.Time, error) {
+func (cache *Cache) getKey(key string, now time.Time) (byte, []byte, *time.Time, error) {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	val, exists := cache.kv[key]
 
 	if !exists {
-		return nil, nil, &NotFoundError{Message: "key not found"}
+		return 0, nil, nil, &NotFoundError{Message: "key not found"}
 	}
 
 	if exists {
 		if val.expiration != nil {
 			expirationTime := *val.expiration
 			if expirationTime.Compare(now) <= 0 {
-				return nil, nil, &NotFoundError{Message: "key not found"}
+				return 0, nil, nil, &NotFoundError{Message: "key not found"}
 			}
 		}
 	}
 
-	return val.val, val.expiration, nil
+	return val.valueType, val.valueBytes, val.expiration, nil
 }
 
-func (cache *Cache) putKey(key string, value any, now time.Time, expiration *time.Time) error {
+func (cache *Cache) putKey(key string, valueType byte, valueBytes []byte, now time.Time, expiration *time.Time) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	val, exists := cache.kv[key]
@@ -110,14 +111,14 @@ func (cache *Cache) putKey(key string, value any, now time.Time, expiration *tim
 		}
 	}
 
-	if value != nil && expiration != nil {
-		cache.kv[key] = Value{value, expiration}
-	} else if value != nil {
+	if valueBytes != nil && expiration != nil {
+		cache.kv[key] = Value{valueType, valueBytes, expiration}
+	} else if valueBytes != nil {
 		v := cache.kv[key]
-		cache.kv[key] = Value{val: value, expiration: v.expiration}
+		cache.kv[key] = Value{valueType: valueType, valueBytes: valueBytes, expiration: v.expiration}
 	} else {
 		v := cache.kv[key]
-		cache.kv[key] = Value{val: v.val, expiration: nil}
+		cache.kv[key] = Value{valueType: v.valueType, valueBytes: v.valueBytes, expiration: nil}
 	}
 	return nil
 }
@@ -143,7 +144,7 @@ func (cache *Cache) deleteKey(key string, now time.Time) error {
 	return nil
 }
 
-func (cache *Cache) addKey(key string, value any, now time.Time, expiration *time.Time) error {
+func (cache *Cache) addKey(key string, valueType byte, valueBytes []byte, now time.Time, expiration *time.Time) error {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	val, exists := cache.kv[key]
@@ -157,6 +158,6 @@ func (cache *Cache) addKey(key string, value any, now time.Time, expiration *tim
 		}
 	}
 
-	cache.kv[key] = Value{value, expiration}
+	cache.kv[key] = Value{valueType, valueBytes, expiration}
 	return nil
 }

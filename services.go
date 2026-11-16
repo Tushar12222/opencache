@@ -17,12 +17,12 @@ func (service *Service) keyExists(key string) bool {
 	return service.cache.keyExists(key, now)
 }
 
-func (service *Service) getKey(key string) (any, *time.Time, error) {
+func (service *Service) getKey(key string) (byte, []byte, *time.Time, error) {
 	now := time.Now().UTC()
 	return service.cache.getKey(key, now)
 }
 
-func (service *Service) addKey(key string, value any, exp int) error {
+func (service *Service) addKey(key string, valueType byte, valueBytes []byte, exp int) error {
 	var expiration *time.Time
 	var now time.Time
 	if exp != 0 {
@@ -34,10 +34,10 @@ func (service *Service) addKey(key string, value any, exp int) error {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	return service.cache.addKey(key, value, now, expiration)
+	return service.cache.addKey(key, valueType, valueBytes, now, expiration)
 }
 
-func (service *Service) putKey(key string, value any, exp int) error {
+func (service *Service) putKey(key string, valueType byte, valueBytes []byte, exp int) error {
 	var expiration *time.Time
 	var now time.Time
 	if exp != 0 {
@@ -49,7 +49,7 @@ func (service *Service) putKey(key string, value any, exp int) error {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	return service.cache.putKey(key, value, now, expiration)
+	return service.cache.putKey(key, valueType, valueBytes, now, expiration)
 }
 
 func (service *Service) deleteKey(key string) error {
