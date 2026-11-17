@@ -30,10 +30,6 @@ func newOCPHandler() *OCPHandler {
 	}
 }
 
-func GetGlobalHandler() *Handler {
-	return globalHandler
-}
-
 func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := KeyExistsRequest{Key: key}
@@ -51,7 +47,7 @@ func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 		valueBytes = []byte{0x00}
 	}
 
-	existsResponseBody, err := toOCPResponseBody(1, 1, valueBytes)
+	existsResponseBody, err := toOCPResponseBody(1, 1, valueBytes, nil)
 	if err != nil {
 		writeOCPErrorResponse(w, uint8(InternalServerOCPError))
 		return
@@ -67,24 +63,24 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
 		return
 	}
-	val, expiration, err := handler.Service.getKey(key)
+	valueType, valueBytes, expiration, err := handler.Service.getKey(key)
 	if err != nil {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return
 	}
 
 	if expiration == nil {
-		getResponseBody, err := toOCPResponseBody(1, 1, []byte(val))
+		getResponseBody, err := toOCPResponseBody(valueType, uint32(len(valueBytes)), valueBytes, nil)
 		if err != nil {
-			writeOCPErrorResponse(w, uint8(InternalServerOCPError))
+			writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 			return
 		}
 		writeOCPResponse(w, http.StatusOK, getResponseBody)
 		return
 	}
 
-	getResponseBody, err := toOCPResponseBody(1, 1, []byte(val))
-	if err != nil {
+	getResponseBody, error := toOCPResponseBody(valueType, uint32(len(valueBytes)), valueBytes, expiration)
+	if error != nil {
 		writeOCPErrorResponse(w, uint8(InternalServerOCPError))
 		return
 	}
@@ -96,8 +92,9 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 
 	postRequest := PostKeyRequest{
 		r.Key,
-		r.Value,
-		0,
+		r.ValueType,
+		r.ValueBytes,
+		r.Expiry,
 	}
 
 	if err := postRequest.Validate(); err != nil {
@@ -105,7 +102,7 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 		return
 	}
 
-	err := handler.Service.addKey(key, postRequest.Value, postRequest.Expiry)
+	err := handler.Service.addKey(key, postRequest.ValueType, postRequest.ValueBytes, postRequest.Expiry)
 	if err != nil {
 		writeOCPErrorResponse(w, uint8(DuplicateKeyOCPError))
 		return
@@ -117,8 +114,10 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 
 	patchRequest := PatchKeyRequest{
-		Key:   r.Key,
-		Value: r.Value,
+		Key:        r.Key,
+		ValueType:  r.ValueType,
+		ValueBytes: r.ValueBytes,
+		Expiry:     r.Expiry,
 	}
 
 	if err := patchRequest.Validate(); err != nil {
@@ -126,7 +125,7 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 		return
 	}
 
-	err := handler.Service.putKey(key, patchRequest.Value, patchRequest.Expiry)
+	err := handler.Service.putKey(key, patchRequest.ValueType, patchRequest.ValueBytes, patchRequest.Expiry)
 	if err != nil {
 		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
 		return

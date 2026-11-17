@@ -59,7 +59,8 @@ type OCPRequest struct {
 	Key         string
 	ValueLength uint32
 	ValueType   byte
-	Value       []byte
+	ValueBytes  []byte
+	Expiry      int
 }
 
 type OCPResponse struct {
@@ -96,7 +97,7 @@ func constructOCPRequest(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCP
 		Key:         ocpRequestBody.Key,
 		ValueLength: ocpRequestBody.ValueLength,
 		ValueType:   ocpRequestBody.ValueType,
-		Value:       ocpRequestBody.Value,
+		ValueBytes:  ocpRequestBody.Value,
 	}
 }
 

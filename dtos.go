@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 type GetKeyRequest struct {
 	Key string
@@ -15,15 +18,17 @@ type DeleteKeyRequest struct {
 }
 
 type PostKeyRequest struct {
-	Key    string
-	Value  any `json:"value"`
-	Expiry int `json:"exp,omitempty"`
+	Key        string
+	ValueType  byte
+	ValueBytes []byte
+	Expiry     int
 }
 
 type PatchKeyRequest struct {
-	Key    string
-	Value  any `json:"value,omitempty"`
-	Expiry int `json:"exp,omitempty"`
+	Key        string
+	ValueType  byte
+	ValueBytes []byte
+	Expiry     int
 }
 
 type PostKeyResponse struct {
@@ -52,9 +57,10 @@ type OCPResponseBody struct {
 	ValueType   byte
 	ValueLength uint32
 	ValueBytes  []byte
+	Expiration  *time.Time
 }
 
-func toOCPResponseBody(valueType byte, valueLength uint32, valueBytes []byte) (*OCPResponseBody, *OCPError) {
+func toOCPResponseBody(valueType byte, valueLength uint32, valueBytes []byte, expiration *time.Time) (*OCPResponseBody, *OCPError) {
 	l := uint32(len(valueBytes))
 
 	if l > valueLength {
@@ -65,6 +71,7 @@ func toOCPResponseBody(valueType byte, valueLength uint32, valueBytes []byte) (*
 		valueType,
 		valueLength,
 		valueBytes,
+		expiration,
 	}, nil
 }
 
@@ -75,7 +82,7 @@ func (body PostKeyRequest) Validate() error {
 		panic(errors.New("key cannot be empty"))
 	}
 
-	if body.Value == nil {
+	if body.ValueType == nil {
 		errs["value"] = "value cannot be nil or empty"
 	}
 

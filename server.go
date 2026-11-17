@@ -74,8 +74,6 @@ func InitializeHTTPServer() *http.Server {
 
 	globalWrappedMux := PanicRecoveryMiddleware(RequestIDMiddleware(LoggingMiddleware(mux)))
 
-	RegisterRoutes(mux)
-
 	server := &http.Server{
 		Addr:         ":" + strconv.Itoa(ServerPort),
 		Handler:      globalWrappedMux,
