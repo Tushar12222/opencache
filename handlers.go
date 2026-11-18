@@ -6,20 +6,8 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-type Handler struct {
-	Service *Service
-}
-
 type OCPHandler struct {
 	Service *Service
-}
-
-func newHandler() *Handler {
-	cache := NewCache()
-	service := NewService(cache)
-	return &Handler{
-		Service: service,
-	}
 }
 
 func newOCPHandler() *OCPHandler {
@@ -34,7 +22,7 @@ func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := KeyExistsRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	exists := handler.Service.keyExists(key)
@@ -49,7 +37,7 @@ func (handler *OCPHandler) handleOCPKeyExists(w *quic.Stream, r *OCPRequest) {
 
 	existsResponseBody, err := toOCPResponseBody(1, 1, valueBytes, nil)
 	if err != nil {
-		writeOCPErrorResponse(w, uint8(InternalServerOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 
@@ -60,12 +48,12 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := GetKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	valueType, valueBytes, expiration, err := handler.Service.getKey(key)
 	if err != nil {
-		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 
@@ -81,7 +69,7 @@ func (handler *OCPHandler) handleOCPGetKey(w *quic.Stream, r *OCPRequest) {
 
 	getResponseBody, error := toOCPResponseBody(valueType, uint32(len(valueBytes)), valueBytes, expiration)
 	if error != nil {
-		writeOCPErrorResponse(w, uint8(InternalServerOCPError))
+		writeOCPErrorResponse(w, uint8(error.ocpErrorType))
 		return
 	}
 	writeOCPResponse(w, http.StatusOK, getResponseBody)
@@ -98,13 +86,13 @@ func (handler *OCPHandler) handleOCPPostKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if err := postRequest.Validate(); err != nil {
-		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 
 	err := handler.Service.addKey(key, postRequest.ValueType, postRequest.ValueBytes, postRequest.Expiry)
 	if err != nil {
-		writeOCPErrorResponse(w, uint8(DuplicateKeyOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	writeOCPResponse(w, http.StatusCreated, nil)
@@ -121,13 +109,13 @@ func (handler *OCPHandler) handleOCPPatchKey(w *quic.Stream, r *OCPRequest) {
 	}
 
 	if err := patchRequest.Validate(); err != nil {
-		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 
 	err := handler.Service.putKey(key, patchRequest.ValueType, patchRequest.ValueBytes, patchRequest.Expiry)
 	if err != nil {
-		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	writeOCPResponse(w, http.StatusOK, nil)
@@ -137,12 +125,12 @@ func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) {
 	key := r.Key
 	request := DeleteKeyRequest{Key: key}
 	if err := request.Validate(); err != nil {
-		writeOCPErrorResponse(w, uint8(BadRequestOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	err := handler.Service.deleteKey(key)
 	if err != nil {
-		writeOCPErrorResponse(w, uint8(KeyNotFoundOCPError))
+		writeOCPErrorResponse(w, uint8(err.ocpErrorType))
 		return
 	}
 	writeOCPResponse(w, http.StatusOK, nil)

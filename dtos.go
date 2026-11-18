@@ -75,15 +75,19 @@ func toOCPResponseBody(valueType byte, valueLength uint32, valueBytes []byte, ex
 	}, nil
 }
 
-func (body PostKeyRequest) Validate() error {
+func (body PostKeyRequest) Validate() *OCPError {
 	errs := make(map[string]string)
 
 	if body.Key == "" {
 		panic(errors.New("key cannot be empty"))
 	}
 
-	if body.ValueType == nil {
-		errs["value"] = "value cannot be nil or empty"
+	if body.ValueType == 0x00 {
+		errs["valueType"] = "valueType cannot be 0"
+	}
+
+	if len(body.ValueBytes) == 0 || body.ValueBytes == nil {
+		errs["valueBytes"] = "valueBytes cannot be empty or nil"
 	}
 
 	if body.Expiry < 0 {
@@ -91,20 +95,20 @@ func (body PostKeyRequest) Validate() error {
 	}
 
 	if len(errs) > 0 {
-		return &BadRequestError{Message: "invalid request body", Fields: errs}
+		return &OCPError{ocpErrorType: BadRequestOCPError}
 	}
 
 	return nil
 }
 
-func (body PatchKeyRequest) Validate() error {
+func (body PatchKeyRequest) Validate() *OCPError {
 	errs := make(map[string]string)
 
 	if body.Key == "" {
 		panic(errors.New("key cannot be empty"))
 	}
 
-	if body.Value == nil && body.Expiry < 0 {
+	if (body.ValueBytes == nil || len(body.ValueBytes) == 0) && body.Expiry < 0 {
 		errs["value"] = "value cannot be nil or empty"
 		errs["exp"] = "exp cannot be less than zero"
 	} else if body.Expiry < 0 {
@@ -112,13 +116,13 @@ func (body PatchKeyRequest) Validate() error {
 	}
 
 	if len(errs) > 0 {
-		return &BadRequestError{Message: "invalid request body", Fields: errs}
+		return &OCPError{ocpErrorType: BadRequestOCPError}
 	}
 
 	return nil
 }
 
-func (body GetKeyRequest) Validate() error {
+func (body GetKeyRequest) Validate() *OCPError {
 	if body.Key == "" {
 		panic(errors.New("key cannot be empty"))
 	}
@@ -126,7 +130,7 @@ func (body GetKeyRequest) Validate() error {
 	return nil
 }
 
-func (body DeleteKeyRequest) Validate() error {
+func (body DeleteKeyRequest) Validate() *OCPError {
 	if body.Key == "" {
 		panic(errors.New("key cannot be empty"))
 	}
@@ -134,7 +138,7 @@ func (body DeleteKeyRequest) Validate() error {
 	return nil
 }
 
-func (body KeyExistsRequest) Validate() error {
+func (body KeyExistsRequest) Validate() *OCPError {
 	if body.Key == "" {
 		panic(errors.New("key cannot be empty"))
 	}

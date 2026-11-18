@@ -141,6 +141,18 @@ func unknownJSONField(errMsg string) (string, bool) {
 	return field, true
 }
 
+func parseErrorToOCPError(err error) *OCPError {
+	if errors.Is(err, &NotFoundError{}) {
+		return &OCPError{KeyNotFoundOCPError}
+	} else if errors.Is(err, &BadRequestError{}) {
+		return &OCPError{BadRequestOCPError}
+	} else if errors.Is(err, &ConflictError{}) {
+		return &OCPError{DuplicateKeyOCPError}
+	}
+
+	return &OCPError{InternalServerOCPError}
+}
+
 // nil resBody = only acknowledge else send value
 func writeOCPResponse(w *quic.Stream, status int, resBody *OCPResponseBody) {
 	var responseBuffer []byte
