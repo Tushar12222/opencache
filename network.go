@@ -173,13 +173,26 @@ func parsePayloadBytes(data []byte) (*OCPRequestBody, error) {
 	}, nil
 }
 
-func loadCertificate() {}
+func loadCertificate(certFile string, keyFile string) (tls.Certificate, error) {
+	return tls.LoadX509KeyPair(certFile, keyFile)
+}
+
+const (
+	certFilePath = ""
+	keyFilePath  = ""
+)
 
 func StartQuicServer() {
+	certificate, error := loadCertificate(certFilePath, keyFilePath)
+	if error != nil {
+		panic(error)
+	}
+
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{
-			loadCertificate(),
+			certificate,
 		},
+		MinVersion: tls.VersionTLS13,
 		NextProtos: []string{"opc"},
 	}
 
