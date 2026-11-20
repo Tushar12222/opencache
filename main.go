@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"strconv"
 )
 
 func main() {
@@ -11,19 +12,20 @@ func main() {
 	handler := InitProductionLogger()
 	defer handler.Shutdown()
 
-	StartCronJob(GetGlobalHandler(), GetGlobalContext(), removeDeadKeysThread)
-	httpServer := InitializeHTTPServer()
+	quicListener := InitializeQuicListener(":"+strconv.Itoa(ServerPort), nil)
+	quicHandler := newOCPHandler()
+	StartCronJob(quicHandler.Service.cache, GetGlobalContext(), removeDeadKeysThread)
 
 	serverErr := make(chan error, 1)
 
 	go func() {
 		slog.Info("Server running",
 			slog.Int("port_number", ServerPort))
-		serverErr <- httpServer.ListenAndServe()
+		serverErr <- ListenAndServe(quicListener, quicHandler)
 	}()
 
-	ListenForInterrupt(httpServer, serverErr)
-	cancel := CleanUp(httpServer)
+	ListenForInterrupt(serverErr)
+	cancel := CleanUp(quicListener)
 	defer cancel()
 	slog.Info("Server shutdown successfully")
 }

@@ -53,7 +53,7 @@ func CleanUp(server *http.Server) context.CancelFunc {
 	return cancel
 }
 
-func ListenForInterrupt(server *http.Server, serverErr chan error) {
+func ListenForInterrupt(serverErr chan error) {
 	select {
 	case <-GetGlobalContext().Done():
 		slog.Info("Interrupt received")
@@ -65,8 +65,8 @@ func ListenForInterrupt(server *http.Server, serverErr chan error) {
 	}
 }
 
-func StartCronJob(handler *Handler, context context.Context, removeExpiredKeyCron func(*Handler, context.Context)) {
-	go removeExpiredKeyCron(handler, context)
+func StartCronJob(cache *Cache, context context.Context, removeExpiredKeyCron func(*Cache, context.Context)) {
+	go removeExpiredKeyCron(cache, context)
 }
 
 func InitializeHTTPServer() *http.Server {

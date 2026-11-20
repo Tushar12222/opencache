@@ -182,7 +182,7 @@ const (
 	keyFilePath  = ""
 )
 
-func StartQuicServer() {
+func InitializeQuicListener(port string, config *quic.Config) *quic.Listener {
 	certificate, error := loadCertificate(certFilePath, keyFilePath)
 	if error != nil {
 		panic(error)
@@ -197,21 +197,21 @@ func StartQuicServer() {
 	}
 
 	listener, err := quic.ListenAddr(
-		":4242",
+		port,
 		tlsConfig,
-		nil,
+		config,
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	handler := newOCPHandler()
+	return listener
+}
 
+func ListenAndServe(listener *quic.Listener, handler *OCPHandler) error {
 	for {
 		conn, err := listener.Accept(context.Background())
-		if err != nil {
-			panic(err)
-		}
+		return err
 
 		go handleConnection(conn, handler)
 	}
