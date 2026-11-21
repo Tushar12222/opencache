@@ -211,9 +211,9 @@ func InitializeQuicListener(port string, config *quic.Config) *quic.Listener {
 func ListenAndServe(listener *quic.Listener, handler *OCPHandler) error {
 	for {
 		conn, err := listener.Accept(context.Background())
-		return err
 
 		go handleConnection(conn, handler)
+		return err
 	}
 }
 

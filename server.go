@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -36,20 +38,17 @@ func GetGlobalContext() context.Context {
 	return globalContext
 }
 
-func shutDownHTTPServer(server *http.Server, ctx context.Context) {
-	if err := server.Shutdown(ctx); err != nil {
-		fmt.Println("Graceful shutdown failed:", err)
-		if closeErr := server.Close(); closeErr != nil {
-			fmt.Println("Force close failed:", closeErr)
-		}
+func shutDownHTTPServer(listener *quic.Listener, ctx context.Context) {
+	if err := listener.Close(); err != nil {
+		fmt.Println("quic listener shutdown failed:", err)
 	}
 }
 
-func CleanUp(server *http.Server) context.CancelFunc {
+func CleanUp(listener *quic.Listener) context.CancelFunc {
 	slog.Info("Cleaning up resources")
 	cleanUpTimeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), cleanUpTimeout)
-	shutDownHTTPServer(server, ctx)
+	shutDownHTTPServer(listener, ctx)
 	return cancel
 }
 
