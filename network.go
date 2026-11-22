@@ -177,6 +177,8 @@ func loadCertificate(certFile string, keyFile string) (tls.Certificate, error) {
 	return tls.LoadX509KeyPair(certFile, keyFile)
 }
 
+type Middlewarefunc func(*quic.Stream, OCPHandler)
+
 const (
 	certFilePath = ""
 	keyFilePath  = ""
@@ -208,16 +210,16 @@ func InitializeQuicListener(port string, config *quic.Config) *quic.Listener {
 	return listener
 }
 
-func ListenAndServe(listener *quic.Listener, handler *OCPHandler) error {
+func ListenAndServe(listener *quic.Listener, handler *OCPHandler, middlewares []Middlewarefunc) error {
 	for {
 		conn, err := listener.Accept(context.Background())
 
-		go handleConnection(conn, handler)
+		go handleConnection(conn, handler, middlewares)
 		return err
 	}
 }
 
-func handleConnection(conn *quic.Conn, handler *OCPHandler) {
+func handleConnection(conn *quic.Conn, handler *OCPHandler, middlewares []Middlewarefunc) {
 	defer conn.CloseWithError(0, "connection closed")
 
 	for {
@@ -226,7 +228,7 @@ func handleConnection(conn *quic.Conn, handler *OCPHandler) {
 			return
 		}
 
-		go handleStream(stream, handler)
+		go handleStream(stream, handler, middlewares)
 	}
 }
 
@@ -245,7 +247,7 @@ func (handler *OCPHandler) handleOCPRequest(w *quic.Stream, request *OCPRequest)
 	}
 }
 
-func handleStream(stream *quic.Stream, handler *OCPHandler) {
+func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middlewarefunc) {
 	defer stream.Close()
 
 	headerBuffer := make([]byte, TotalHeaderLengthBytes)
@@ -272,5 +274,7 @@ func handleStream(stream *quic.Stream, handler *OCPHandler) {
 	}
 
 	request := constructOCPRequest(parsedRequestHeaders, parsedRequestPayload)
+	// run middlewares
+
 	handler.handleOCPRequest(stream, request)
 }
