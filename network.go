@@ -177,7 +177,7 @@ func loadCertificate(certFile string, keyFile string) (tls.Certificate, error) {
 	return tls.LoadX509KeyPair(certFile, keyFile)
 }
 
-type Middlewarefunc func(*quic.Stream, OCPHandler, *OCPRequest, func(*quic.Stream, *OCPRequest))
+type Middlewarefunc func(*quic.Stream, OCPHandler, *OCPRequest)
 
 const (
 	certFilePath = ""

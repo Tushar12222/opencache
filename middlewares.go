@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/quic-go/quic-go"
 )
 
 type responseWriterWrapper struct {
@@ -34,7 +35,7 @@ func validateRequestID(requestID string) error {
 	return nil
 }
 
-func LoggingMiddleware(next http.Handler) http.Handler {
+func LoggingMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := extractRequestID(r)
 		start := time.Now()
@@ -49,7 +50,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		reqLogger.Info("http request received")
 
-		next.ServeHTTP(wrappedWriter, r)
+		handler.handleOCPRequest(stream, req)
 
 		reqLogger.Info("http request completed",
 			slog.Int("status", wrappedWriter.statusCode),
