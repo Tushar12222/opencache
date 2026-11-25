@@ -177,8 +177,6 @@ func loadCertificate(certFile string, keyFile string) (tls.Certificate, error) {
 	return tls.LoadX509KeyPair(certFile, keyFile)
 }
 
-type Middlewarefunc func(*quic.Stream, OCPHandler, *OCPRequest)
-
 const (
 	certFilePath = ""
 	keyFilePath  = ""
@@ -210,7 +208,7 @@ func InitializeQuicListener(port string, config *quic.Config) *quic.Listener {
 	return listener
 }
 
-func ListenAndServe(listener *quic.Listener, handler *OCPHandler, middlewares []Middlewarefunc) error {
+func ListenAndServe(listener *quic.Listener, handler *OCPHandler, middlewares []Middleware) error {
 	for {
 		conn, err := listener.Accept(context.Background())
 
@@ -219,7 +217,7 @@ func ListenAndServe(listener *quic.Listener, handler *OCPHandler, middlewares []
 	}
 }
 
-func handleConnection(conn *quic.Conn, handler *OCPHandler, middlewares []Middlewarefunc) {
+func handleConnection(conn *quic.Conn, handler *OCPHandler, middlewares []Middleware) {
 	defer conn.CloseWithError(0, "connection closed")
 
 	for {
@@ -232,22 +230,7 @@ func handleConnection(conn *quic.Conn, handler *OCPHandler, middlewares []Middle
 	}
 }
 
-func (handler *OCPHandler) handleOCPRequest(w *quic.Stream, request *OCPRequest) {
-	switch request.Command {
-	case PatchCommand:
-		handler.handleOCPPatchKey(w, request)
-	case GetCommand:
-		handler.handleOCPGetKey(w, request)
-	case PostCommand:
-		handler.handleOCPPostKey(w, request)
-	case DeleteCommand:
-		handler.handleOCPDeleteKey(w, request)
-	case ExistsCommand:
-		handler.handleOCPKeyExists(w, request)
-	}
-}
-
-func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middlewarefunc) {
+func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middleware) {
 	defer stream.Close()
 
 	headerBuffer := make([]byte, TotalHeaderLengthBytes)
@@ -275,6 +258,11 @@ func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middle
 
 	request := constructOCPRequest(parsedRequestHeaders, parsedRequestPayload)
 	// run middlewares
+	ocpResponse, ocpErr := runMiddlwares(middlewares, stream, handler, request)
+	if ocpErr != nil {
+		writeOCPErrorResponse(stream, uint8(ocpErr.ocpErrorType))
+		return
+	}
 
-	handler.handleOCPRequest(stream, request)
+	writeOCPResponse(stream, 0, ocpResponse)
 }

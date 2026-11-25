@@ -21,7 +21,7 @@ func main() {
 	go func() {
 		slog.Info("Server running",
 			slog.Int("port_number", ServerPort))
-		serverErr <- ListenAndServe(quicListener, quicHandler)
+		serverErr <- ListenAndServe(quicListener, quicHandler, nil)
 	}()
 
 	ListenForInterrupt(serverErr)

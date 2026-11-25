@@ -125,3 +125,18 @@ func (handler *OCPHandler) handleOCPDeleteKey(w *quic.Stream, r *OCPRequest) (*O
 
 	return nil, nil
 }
+
+func (handler *OCPHandler) handleOCPRequest(w *quic.Stream, request *OCPRequest) {
+	switch request.Command {
+	case PatchCommand:
+		handler.handleOCPPatchKey(w, request)
+	case GetCommand:
+		handler.handleOCPGetKey(w, request)
+	case PostCommand:
+		handler.handleOCPPostKey(w, request)
+	case DeleteCommand:
+		handler.handleOCPDeleteKey(w, request)
+	case ExistsCommand:
+		handler.handleOCPKeyExists(w, request)
+	}
+}

@@ -9,6 +9,8 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+type Middleware func(*quic.Stream, *OCPHandler, *OCPRequest) (*OCPResponseBody, *OCPError)
+
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	statusCode int
@@ -89,4 +91,14 @@ func PanicRecoveryMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+func runMiddlwares(middlewares []Middleware, stream *quic.Stream, handler *OCPHandler, request *OCPRequest) (*OCPResponseBody, *OCPError) {
+	var response *OCPResponseBody
+	var err *OCPError
+	for _, middleware := range middlewares {
+		response, err = middleware(stream, handler, request)
+	}
+
+	return response, err
 }
