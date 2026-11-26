@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -38,7 +37,7 @@ func GetGlobalContext() context.Context {
 	return globalContext
 }
 
-func shutDownHTTPServer(listener *quic.Listener, ctx context.Context) {
+func shutDownQuicListener(listener *quic.Listener, ctx context.Context) {
 	if err := listener.Close(); err != nil {
 		fmt.Println("quic listener shutdown failed:", err)
 	}
@@ -48,7 +47,7 @@ func CleanUp(listener *quic.Listener) context.CancelFunc {
 	slog.Info("Cleaning up resources")
 	cleanUpTimeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), cleanUpTimeout)
-	shutDownHTTPServer(listener, ctx)
+	shutDownQuicListener(listener, ctx)
 	return cancel
 }
 
@@ -66,20 +65,4 @@ func ListenForInterrupt(serverErr chan error) {
 
 func StartCronJob(cache *Cache, context context.Context, removeExpiredKeyCron func(*Cache, context.Context)) {
 	go removeExpiredKeyCron(cache, context)
-}
-
-func InitializeHTTPServer() *http.Server {
-	mux := http.NewServeMux()
-
-	globalWrappedMux := PanicRecoveryMiddleware(RequestIDMiddleware(LoggingMiddleware(mux)))
-
-	server := &http.Server{
-		Addr:         ":" + strconv.Itoa(ServerPort),
-		Handler:      globalWrappedMux,
-		ReadTimeout:  ReadTimeout,
-		WriteTimeout: WriteTimeout,
-		IdleTimeout:  IdleTimeout,
-	}
-
-	return server
 }

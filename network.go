@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
-	"errors"
 	"io"
 
+	"github.com/google/uuid"
 	"github.com/quic-go/quic-go"
 )
 
@@ -18,6 +18,7 @@ const (
 	KeySizeHeaderLengthBytes     int = 3
 	ValueSizeHeaderLengthBytes   int = 4
 	ValueTypeHeaderLengthBytes   int = 1
+	RequestIdBytesSize           int = 16
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 	MaxValueSizeBytes   uint32 = 16 * 1024 * 1024
 )
 
+//go:generate stringer -type=Command
 type Command uint8
 
 const (
@@ -39,6 +41,7 @@ const (
 
 type OCPRequestHeader struct {
 	Version     uint8
+	RequestId   string
 	Command     Command
 	PayloadSize uint16
 }
@@ -53,6 +56,7 @@ type OCPRequestBody struct {
 
 type OCPRequest struct {
 	Version     uint8
+	RequestID   string
 	Command     Command
 	PayloadSize uint16
 	KeyLength   uint32
@@ -86,6 +90,8 @@ const (
 	DuplicateKeyOCPError
 	BadRequestOCPError
 	InternalServerOCPError
+	InvalidHeadersOCPError
+	InvalidPayloadOCPError
 )
 
 func constructOCPRequest(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCPRequestBody) *OCPRequest {
@@ -101,12 +107,20 @@ func constructOCPRequest(ocpRequestHeader *OCPRequestHeader, ocpRequestBody *OCP
 	}
 }
 
-func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
+func parseHeaderBytes(data []byte) (*OCPRequestHeader, *OCPError) {
 	index := 0
 
 	versionBytes := data[index : index+VersionHeaderLengthBytes]
 	versionByte := versionBytes[0]
 	index = index + VersionHeaderLengthBytes
+
+	requestIdBytes := data[index : index+RequestIdBytesSize]
+	index = index + RequestIdBytesSize
+	requestId, err := uuid.FromBytes(requestIdBytes)
+	if err != nil {
+		return &OCPRequestHeader{}, &OCPError{ocpErrorType: InvalidHeadersOCPError}
+	}
+	parsedRequestId := requestId.String()
 
 	commandBytes := data[index : index+CommandHeaderLengthBytes]
 	commandByte := commandBytes[0]
@@ -116,34 +130,35 @@ func parseHeaderBytes(data []byte) (*OCPRequestHeader, error) {
 
 	version := uint8(versionByte)
 	if version != CurrentVersion {
-		return &OCPRequestHeader{}, errors.New("")
+		return &OCPRequestHeader{}, &OCPError{ocpErrorType: InvalidHeadersOCPError}
 	}
 
 	parsedCommand := int8(commandByte)
 	if parsedCommand < 1 || parsedCommand > 5 {
-		return &OCPRequestHeader{}, errors.New("")
+		return &OCPRequestHeader{}, &OCPError{ocpErrorType: InvalidHeadersOCPError}
 	}
 	command := Command(parsedCommand)
 
 	payloadSize := binary.BigEndian.Uint16(payloadBytes)
 	if uint32(payloadSize) > MaxPayloadSizeBytes {
-		return &OCPRequestHeader{}, errors.New("")
+		return &OCPRequestHeader{}, &OCPError{ocpErrorType: InvalidHeadersOCPError}
 	}
 
 	return &OCPRequestHeader{
 		Version:     version,
+		RequestId:   parsedRequestId,
 		Command:     command,
 		PayloadSize: payloadSize,
 	}, nil
 }
 
-func parsePayloadBytes(data []byte) (*OCPRequestBody, error) {
+func parsePayloadBytes(data []byte) (*OCPRequestBody, *OCPError) {
 	index := 0
 	keyLengthBytes := data[index : index+KeySizeHeaderLengthBytes]
 	keySize := uint32(binary.BigEndian.Uint16(keyLengthBytes))
 
 	if keySize > MaxKeySizeBytes {
-		return &OCPRequestBody{}, errors.New("")
+		return &OCPRequestBody{}, &OCPError{ocpErrorType: InvalidPayloadOCPError}
 	}
 	index += KeySizeHeaderLengthBytes
 
@@ -159,7 +174,7 @@ func parsePayloadBytes(data []byte) (*OCPRequestBody, error) {
 
 	valueSize := binary.BigEndian.Uint32(valueLengthBytes)
 	if valueSize > MaxValueSizeBytes {
-		return &OCPRequestBody{}, errors.New("")
+		return &OCPRequestBody{}, &OCPError{ocpErrorType: InvalidPayloadOCPError}
 	}
 
 	valueBytes := data[index : index+int(valueSize)]
@@ -240,8 +255,9 @@ func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middle
 		// Handle incomplete header or stream error
 		return
 	}
-	parsedRequestHeaders, err := parseHeaderBytes(headerBuffer)
-	if err != nil {
+	parsedRequestHeaders, headerErr := parseHeaderBytes(headerBuffer)
+	if headerErr != nil {
+		writeOCPErrorResponse(stream, uint8(headerErr.ocpErrorType))
 		return
 	}
 
@@ -251,13 +267,14 @@ func handleStream(stream *quic.Stream, handler *OCPHandler, middlewares []Middle
 		return
 	}
 
-	parsedRequestPayload, err := parsePayloadBytes(payloadBuffer)
+	parsedRequestPayload, payloadErr := parsePayloadBytes(payloadBuffer)
 	if err != nil {
+		writeOCPErrorResponse(stream, uint8(payloadErr.ocpErrorType))
 		return
 	}
 
 	request := constructOCPRequest(parsedRequestHeaders, parsedRequestPayload)
-	// run middlewares
+
 	ocpResponse, ocpErr := runMiddlwares(middlewares, stream, handler, request)
 	if ocpErr != nil {
 		writeOCPErrorResponse(stream, uint8(ocpErr.ocpErrorType))

@@ -11,18 +11,8 @@ import (
 
 type Middleware func(*quic.Stream, *OCPHandler, *OCPRequest) (*OCPResponseBody, *OCPError)
 
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriterWrapper) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-func extractRequestID(r *http.Request) string {
-	requestID := r.Header.Get("X-Request-ID")
+func extractRequestID(r *OCPRequest) string {
+	requestID := r.RequestID
 	return requestID
 }
 
@@ -37,28 +27,25 @@ func validateRequestID(requestID string) error {
 	return nil
 }
 
-func LoggingMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := extractRequestID(r)
-		start := time.Now()
+func LoggingMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest) (*OCPResponseBody, *OCPError) {
+	requestID := extractRequestID(req)
+	command := req.Command
+	start := time.Now()
 
-		wrappedWriter := &responseWriterWrapper{ResponseWriter: w, statusCode: http.StatusOK}
+	reqLogger := slog.Default().With(
+		slog.String("request_id", requestID),
+		slog.String("command", command.String()),
+	)
 
-		reqLogger := slog.Default().With(
-			slog.String("request_id", requestID),
-			slog.String("method", r.Method),
-			slog.String("path", r.URL.Path),
-		)
+	reqLogger.Info("stream request received")
 
-		reqLogger.Info("http request received")
+	response, err := handler.handleOCPRequest(stream, req)
 
-		handler.handleOCPRequest(stream, req)
+	reqLogger.Info("stream response completed",
+		slog.Duration("latency", time.Since(start)),
+	)
 
-		reqLogger.Info("http request completed",
-			slog.Int("status", wrappedWriter.statusCode),
-			slog.Duration("latency", time.Since(start)),
-		)
-	})
+	return response, err
 }
 
 func RequestIDMiddleware(next http.Handler) http.Handler {
