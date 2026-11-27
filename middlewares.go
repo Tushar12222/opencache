@@ -2,7 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,12 +15,10 @@ func extractRequestID(r *OCPRequest) string {
 	return requestID
 }
 
-func validateRequestID(requestID string) error {
+func validateRequestID(requestID string) *OCPError {
 	_, err := uuid.Parse(requestID)
 	if err != nil {
-		return &BadRequestError{Message: "invalid request", Fields: map[string]string{
-			"requestID": err.Error(),
-		}}
+		return &OCPError{ocpErrorType: InvalidHeadersOCPError}
 	}
 
 	return nil
@@ -48,36 +45,24 @@ func LoggingMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest)
 	return response, err
 }
 
-func RequestIDMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := extractRequestID(r)
-		if requestID == "" {
-			requestID = mustGenerateUUIDV7(uuid.NewV7)
-		} else {
-			err := validateRequestID(requestID)
-			if err != nil {
-				writeErrorResponse(w, http.StatusBadRequest, err.Error())
-				return
-			}
-		}
-		r.Header.Set("X-Request-ID", requestID)
-		next.ServeHTTP(w, r)
-	})
+func RequestIDMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest) (*OCPResponseBody, *OCPError) {
+	requestID := extractRequestID(req)
+	err := validateRequestID(requestID)
+	if err != nil {
+		return &OCPResponseBody{}, &OCPError{ocpErrorType: InvalidHeadersOCPError}
+	}
+
+	return handler.handleOCPRequest(stream, req)
 }
 
-func PanicRecoveryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				slog.Error("PANIC RECOVERED", slog.Any("error", err))
-				errMsg, _ := JSONEncoder(map[string]any{
-					"message": "something went wrong",
-				})
-				writeErrorResponse(w, http.StatusInternalServerError, string(errMsg))
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
+func PanicRecoveryMiddleware(stream *quic.Stream, handler OCPHandler, req *OCPRequest) (*OCPResponseBody, *OCPError) {
+	defer func() {
+		if err := recover(); err != nil {
+			slog.Error("PANIC RECOVERED", slog.Any("error", err))
+			writeOCPErrorResponse(stream, uint8(InternalServerOCPError))
+		}
+	}()
+	return handler.handleOCPRequest(stream, req)
 }
 
 func runMiddlwares(middlewares []Middleware, stream *quic.Stream, handler *OCPHandler, request *OCPRequest) (*OCPResponseBody, *OCPError) {
